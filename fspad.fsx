@@ -2348,7 +2348,7 @@ let header =
     """
 <!DOCTYPE HTML>
 <html>
-  <head>
+    <head>
     <meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
 	<meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="Generator" content="LINQ to XML, baby!" />
@@ -2546,30 +2546,30 @@ code.xml em { color:red; font-weight:normal; font-style:normal }
     <script language='JavaScript' type='text/javascript'>
 
 
-	  function toggle(id)
-      {
+	    function toggle(id)
+        {
         table = document.getElementById(id);
         if (table == null) return false;
         updown = document.getElementById(id + 'ud');
         if (updown == null) return false;
         if (updown.innerHTML == '5' || updown.innerHTML == '6') {
-          expand = updown.innerHTML == '6';
-          updown.innerHTML = expand ? '5' : '6';
+            expand = updown.innerHTML == '6';
+            updown.innerHTML = expand ? '5' : '6';
         } else {
-          expand = updown.innerHTML == '˅';
-          updown.innerHTML = expand ? '˄' : '˅';
+            expand = updown.innerHTML == '˅';
+            updown.innerHTML = expand ? '˄' : '˅';
         }
         table.style.borderBottomStyle = expand ? 'solid' : 'dashed';
         elements = table.rows;
         if (elements.length == 0 || elements.length == 1) return false;
         for (i = 1; i != elements.length; i++)
-          if (elements[i].id.substring(0,3) != 'sum')
+            if (elements[i].id.substring(0,3) != 'sum')
             elements[i].style.display = expand ? 'table-row' : 'none';
         return false;
-      }
+        }
     
     </script>
-  </head>
+    </head>
 <body><div class="spacer">
 """
 
@@ -2667,6 +2667,8 @@ let pprint (x:'t) = let p = mkPrinter<'t>() in p x
 
 // HTML Generation
 
+let htmlEncode s = System.Web.HttpUtility.HtmlEncode(s)
+
 let rec traversePP x =
     match x with
     | List lst -> 
@@ -2684,7 +2686,7 @@ let rec traversePP x =
                     yield "<table>"
                     yield "<tr>"
                     for j in fields do
-                        yield "<th>" + j + "</th>"
+                        yield "<th>" + htmlEncode j + "</th>"
                     yield "</tr>"
 
                     for e in lst do
@@ -2699,19 +2701,19 @@ let rec traversePP x =
                     ] |> String.concat "  "
         body
      
-     | Table fields ->
+        | Table fields ->
                         [
                             yield "<table>"                            
                             for f in fields do
                                 yield "<tr>"
-                                yield "<th>" + f.name + "</th>"
+                                yield "<th>" + htmlEncode f.name + "</th>"
                                 yield "<td>" + traversePP f.value + "</td>"
                                 yield "</tr>"
                             yield "</table>" 
                             ] |> String.concat "  "
-     | Value (ty, vl) -> vl
+        | Value (ty, vl) -> htmlEncode vl
 
-let genhtml x = header + traversePP x + footer;;
+let genhtml x = header + traversePP x + footer
 
 
 
@@ -2746,41 +2748,3 @@ type Results() =
 
 
 
-///////////////////////////////////////
-// Examples
-///////////////////////////////////////
-
-
-
-// Single value
-Results.Dump 13
-
-// A list of values
-Results.Dump [ 1 .. 30 ]
-
-// A tuple
-Results.Dump ( ("By Plane", 2, 250.99) )
-
-// A list of tuples (notice how it changes the layout, to tabular)
-Results.Dump [ ("By Plane", 2, 250.99); ("By Car", 10, 210.5);  ("By Train", 15, 483.53)  ]
-
-// A record
-type Person = { firstName : string   ; lastName : string; age : int; address : string } 
-Results.Dump  { firstName = "Gustavo"; lastName = "Leon"; age = 43 ; address = "Dole" }
-
-// A list of records (again changes to tabular)
-Results.Dump
-    [
-        {firstName = "Gustavo"; lastName = "Leon"     ; age = 43 ; address = "Dole" }
-        {firstName = "Eirik"  ; lastName = "Tsarpalis"; age =  5 ; address = "Dublin" }
-    ]
-
-// Nested stuff
-type Dev = { firstName : string ; lastName : string ; age : int; address : string ; projects : string list } 
-Results.Dump   {firstName = "Gustavo"; lastName = "Leon"; age = 43 ; address = "Dole" ; projects = ["F#+"; "ScrapeM" ]}
-
-Results.Dump
-    [
-        {firstName = "Gustavo"; lastName = "Leon"     ; age = 43 ; address = "Dole"   ; projects = ["F#+"; "ScrapeM" ]}
-        {firstName = "Eirik"  ; lastName = "Tsarpalis"; age =  5 ; address = "Dublin" ; projects = ["TypeShape"; "FsPickler" ]}
-    ]
