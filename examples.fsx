@@ -1,6 +1,7 @@
 #load "FsPad.fsx"
 
 open FsPad
+open System
 
 ///////////////////////////////////////
 // Examples
@@ -42,3 +43,12 @@ Results.Dump
         {firstName = "Eirik"  ; lastName = "Tsarpalis"; age =  5 ; address = "Dublin" ; projects = ["TypeShape"; "FsPickler" ]}
     ]
 
+//  Recursively Defined Object
+type Tree<'a>(value:'a, getEdges:'a -> seq<'a>) = 
+    let list = lazy [ for e in getEdges(value) -> Tree(e, getEdges) ]
+    member this.Value = value
+    member this.Children = list.Value
+
+let tree1 = Tree(1, fun x -> seq { for x in x..2 -> x })
+
+Results.Dump(tree1, 9)

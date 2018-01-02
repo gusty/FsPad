@@ -2588,80 +2588,97 @@ type PrettyPrint =
     | List  of list<PrettyPrint>
     | Table of list<Field>
     | Value of string * string
+    | MaxRecurse
 and Field = {name : string; value : PrettyPrint}
 
-
+type PrettyPrinter<'T> = int -> 'T -> PrettyPrint
 
 // Generic value to PrettyPrint
 
-let rec mkPrinter<'T> () : 'T -> PrettyPrint =
+let rec mkPrinter<'T> () : PrettyPrinter<'T> =
     let ctx = new RecTypeManager()
     mkPrinterCached<'T> ctx
 
-and mkPrinterCached<'T> (ctx : RecTypeManager) : 'T -> PrettyPrint =
-    match ctx.TryFind<'T -> PrettyPrint> () with
+and mkPrinterCached<'T> (ctx : RecTypeManager) : PrettyPrinter<'T> =
+    match ctx.TryFind<PrettyPrinter<'T>> () with
     | Some p -> p
     | None ->
-        let _ = ctx.CreateUninitialized<'T -> PrettyPrint>(fun c t -> c.Value t)
+        let _ = ctx.CreateUninitialized<PrettyPrinter<'T>>(fun c t -> c.Value t)
         let p = mkPrinterAux<'T> ctx
         ctx.Complete p
 
-and mkPrinterAux<'T> (ctx : RecTypeManager) : 'T -> PrettyPrint =
-    let wrap(p : 'a -> PrettyPrint) = unbox<'T -> PrettyPrint> p
+and mkPrinterAux<'T> (ctx : RecTypeManager) : PrettyPrinter<'T> =
+    let wrap(p : PrettyPrinter<'a>) = unbox<PrettyPrinter<'T>> p
+    let wrapNested(p : PrettyPrinter<'a>) = unbox<PrettyPrinter<'T>>(fun level x -> if level <= 0 then MaxRecurse else p level x)
+
     let mkFieldPrinter (field : IShapeMember<'DeclaringType>) =
         field.Accept {
-            new IMemberVisitor<'DeclaringType, string * ('DeclaringType -> PrettyPrint)> with
+            new IMemberVisitor<'DeclaringType, string * (PrettyPrinter<'DeclaringType>)> with
                 member __.Visit(field : ShapeMember<'DeclaringType, 'Field>) =
                     let fp = mkPrinterCached<'Field> ctx
-                    field.Label, fp << field.Project
+                    field.Label, (fun l x -> x |> field.Project |> fp l)
         }
 
     match shapeof<'T> with
-    | Shape.Unit -> wrap (fun v -> Value ("Unit", "()"))
-    | Shape.Bool -> wrap (fun v -> Value ("Boolean", sprintf "%b" v))
-    | Shape.Byte -> wrap (fun (v:byte) -> Value ("Byte", sprintf "%duy" v))
-    | Shape.Int32  -> wrap (fun v -> Value ("Int"  , string<int> v))
-    | Shape.Int64  -> wrap (fun v -> Value ("Int64", string<int64> v))
-    | Shape.Double  -> wrap (fun v -> Value ("Float", string<float> v))
-    | Shape.String -> wrap (fun v -> Value ("String", v))
-    | Shape.DateTime       -> wrap (fun (b:DateTime) -> Value ("DateTime", sprintf "(%i, %i, %i, %i, %i, %i, %i)" b.Year b.Month b.Day b.Hour b.Minute b.Second b.Millisecond))
+    | Shape.Unit -> wrap (fun _ v -> Value ("Unit", "()"))
+    | Shape.Bool -> wrap (fun _ v -> Value ("Boolean", sprintf "%b" v))
+    | Shape.Byte -> wrap (fun _ (v:byte) -> Value ("Byte", sprintf "%duy" v))
+    | Shape.Int32  -> wrap (fun _ v -> Value ("Int"  , string<int> v))
+    | Shape.Int64  -> wrap (fun _ v -> Value ("Int64", string<int64> v))
+    | Shape.Double  -> wrap (fun _ v -> Value ("Float", string<float> v))
+    | Shape.String -> wrap (fun _ v -> Value ("String", v))
+    | Shape.DateTime       -> wrap (fun _ (b:DateTime) -> Value ("DateTime", sprintf "(%i, %i, %i, %i, %i, %i, %i)" b.Year b.Month b.Day b.Hour b.Minute b.Second b.Millisecond))
 
     // | Shape.FSharpOption s -> TODO
 
     | Shape.FSharpList s ->
-        s.Accept { new IFSharpListVisitor<'T -> PrettyPrint> with member __.Visit<'a> () = let tp = mkPrinterCached<'a> ctx in wrap (List.map tp >> List) }
+        s.Accept { new IFSharpListVisitor<PrettyPrinter<'T>> with
+                    member __.Visit<'a> () = 
+                        let tp = mkPrinterCached<'a> ctx 
+                        wrapNested (fun level x -> x |> List.map (tp (level - 1)) |> List) }
 
     | Shape.Array s when s.Rank = 1 ->
-        s.Accept { new IArrayVisitor<'T ->      PrettyPrint> with member __.Visit<'a> _  = let tp = mkPrinterCached<'a> ctx in wrap (Array.map tp >> Array.toList >> List) }
+        s.Accept { new IArrayVisitor<PrettyPrinter<'T>> with 
+                    member __.Visit<'a> _  = 
+                        let tp = mkPrinterCached<'a> ctx 
+                        wrapNested (fun level x -> x |> Array.map (tp (level - 1)) |> Array.toList |> List) }
 
     | Shape.FSharpSet s ->
-        s.Accept { new IFSharpSetVisitor<'T -> PrettyPrint> with member __.Visit<'a when 'a : comparison> () = let tp = mkPrinterCached<'a> ctx in wrap (fun (s : Set<'a>) -> s |> Seq.map tp |> Seq.toList |> List) }
+        s.Accept { new IFSharpSetVisitor<PrettyPrinter<'T>> with 
+                    member __.Visit<'a when 'a : comparison> () = 
+                        let tp = mkPrinterCached<'a> ctx 
+                        wrapNested (fun level (s : Set<'a>) -> s |> Seq.map (tp (level - 1)) |> Seq.toList |> List) }
 
     | Shape.Tuple (:? ShapeTuple<'T> as shape) ->
         let elemPrinters = shape.Elements |> Array.map mkFieldPrinter
-        fun (t:'T) -> elemPrinters |> Seq.map (fun (n, ep) -> {name = n.Replace("Item", "#"); value = ep t}) |> Seq.toList |> Table
+        wrapNested(fun level (t:'T) -> 
+            elemPrinters |> Seq.map (fun (n, ep) -> {name = n.Replace("Item", "#"); value = ep (level - 1) t}) |> Seq.toList |> Table)
 
     | Shape.FSharpRecord (:? ShapeFSharpRecord<'T> as shape) ->
         let fieldPrinters = shape.Fields |> Array.map mkFieldPrinter
-        fun (r:'T) -> fieldPrinters |> Seq.map (fun (name, ep) -> {name = name; value = ep r} ) |> Seq.toList |> Table
+        wrapNested(fun level (r:'T) -> 
+            fieldPrinters |> Seq.map (fun (name, ep) -> {name = name; value = ep (level - 1) r} ) |> Seq.toList |> Table)
 
 
     //| Shape.FSharpUnion (:? ShapeFSharpUnion<'T> as shape) -> TODO
 
     | Shape.Poco (:? ShapePoco<'T> as shape) ->
         let propPrinters = shape.Properties |> Array.map mkFieldPrinter
-        fun (r:'T) ->
-            propPrinters
-            |> Seq.map (fun (name, ep) ->
-                let value = ep r
-                {name = name; value = value}  ) |> Seq.toList |> Table
+        wrapNested(
+            fun level (r:'T) ->
+                propPrinters
+                |> Seq.map (fun (name, ep) ->
+                    let value = ep (level - 1) r
+                    {name = name; value = value}  ) |> Seq.toList |> Table
+        )
 
     | _ -> failwithf "unsupported type '%O'" typeof<'T>
 
 
+
 //---------------------------------------
 
-let pprint (x:'t) = let p = mkPrinter<'t>() in p x
+let pprint (level) (x:'t) = let p = mkPrinter<'t>() in p level x
 
 //---------------------------------------
 
@@ -2712,6 +2729,7 @@ let rec traversePP x =
                             yield "</table>" 
                             ] |> String.concat "  "
         | Value (ty, vl) -> htmlEncode vl
+        | MaxRecurse -> "..."
 
 let genhtml x = header + traversePP x + footer
 
@@ -2733,11 +2751,12 @@ type Results() =
             frm.Controls.Add brw
             brw
     static let mutable resultsWdw = getResultsWdw()
-    static member Dump objValue =
+    static member Dump(objValue) = Results.Dump(objValue, 3)
+    static member Dump(objValue, maxLevel : int) =
         let objName = "RESULTS !" 
         if resultsWdw.IsDisposed then resultsWdw <- getResultsWdw ()
         let localUrl = localUrl ()
-        File.WriteAllText (localUrl, objValue |> pprint |> genhtml)
+        File.WriteAllText (localUrl, objValue |> pprint maxLevel |> genhtml)
         resultsWdw.FindForm().Text <- title + " - " + objName
         resultsWdw.Url <- Uri localUrl
         objValue
