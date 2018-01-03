@@ -367,9 +367,9 @@ Target "BuildFsPad" (fun _ ->
                             if line.Contains("ignore-cat") = false then
                                 yield line] |> String.concat "\n"
 
-    File.WriteAllText("FsPad.Output.fsx", content.Replace("\r\n", "\n"), Text.UTF8Encoding.UTF8)
+    File.WriteAllText("FsPad.fsx", content.Replace("\r\n", "\n"), Text.UTF8Encoding.UTF8)
 
-    printfn "Wrote FsPad.Output.fsx"
+    printfn "Wrote FsPad.fsx"
 )
 
 Target "BuildPackage" DoNothing
