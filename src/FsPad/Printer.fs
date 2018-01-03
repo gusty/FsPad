@@ -349,7 +349,7 @@ let render x =
         | Value (_, vl) -> htmlEncode vl
         | MaxRecurse -> "..."
         | Table fields ->
-            [
+            seq {
                 yield "<table>"                            
                 for f in fields do
                     yield "<tr>"
@@ -357,10 +357,10 @@ let render x =
                     yield "<td>" + render f.value + "</td>"
                     yield "</tr>"
                 yield "</table>" 
-                ] |> String.concat "  "
+                } |> String.concat "  "
         | List lst -> 
             let fields =
-                lst |> Seq.fold (fun (s:Set<string>) x -> 
+                lst |> List.fold (fun (s:Set<string>) x -> 
                         match x with
                         | Table x ->
                             let c = List.map (fun {name = n} -> n) x
@@ -369,7 +369,7 @@ let render x =
                 ) Set.empty
 
             let body =
-                    [
+                    seq {
                         yield "<table>"
                         yield "<tr>"
                         for j in fields do
@@ -385,7 +385,7 @@ let render x =
                                 yield "</tr>"
                             | other -> yield "<tr><td>" + render other + "</td></tr>"
                         yield "</table>" 
-                        ] |> String.concat "  "
+                        } |> String.concat "  "
             body
 
     header + render x + footer
