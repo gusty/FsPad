@@ -29,17 +29,17 @@ let project = "FsPad"
 
 // Short summary of the project
 // (used as description in AssemblyInfo and as a short summary for NuGet package)
-let summary = "F#+ is a base library for F#."
+let summary = "FsPad is an HTML based pretty-printer."
 
 // Longer description of the project
 // (used as a description for NuGet package; line breaks are automatically cleaned up)
-let description = "A complete and extensible base library for F#."
+let description = "An interactive HTML based Pretty-Printer for F#."
 
 // List of author names (for NuGet package)
-let authors = [ "Gusty"; "Steve Goguen" ]
+let authors = [ "Gustavo Leon"; "Steve Goguen" ]
 
 // Tags for your project (for NuGet package)
-let tags = "FSharp Applicative Monad MonadTransformer Arrow Overloading"
+let tags = "FSharp Interactive Query Pretty-Printer"
 
 // File system information
 let solutionFile  = "FsPad.sln"

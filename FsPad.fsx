@@ -2727,7 +2727,7 @@ type Results() =
     static let localUrl () = Path.GetTempFileName () + ".fspad.html"
     static let getResultsWdw() =
             let localUrl = localUrl ()
-            File.WriteAllText (localUrl, " use |> dump \"[title]\"")
+            File.WriteAllText (localUrl, " use |> dump")
             let brw = new WebBrowser (Dock = DockStyle.Fill,Url = Uri localUrl)
             let frm = new Form (Visible = true, Width = 256, Height = 768, Location = Drawing.Point (0, 0), Text = title)
             frm.Controls.Add brw
@@ -2743,3 +2743,5 @@ type Results() =
         resultsWdw.FindForm().Text <- title + " - " + objName
         resultsWdw.Url <- Uri localUrl
         objValue
+
+let dump x = Results.Dump x

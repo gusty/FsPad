@@ -29,8 +29,8 @@ Results.Dump  { firstName = "Gustavo"; lastName = "Leon"; age = 43 ; address = "
 // A list of records (again changes to tabular)
 Results.Dump
     [
-        {firstName = "Gustavo"; lastName = "Leon"     ; age = 43 ; address = "Dole" }
-        {firstName = "Eirik"  ; lastName = "Tsarpalis"; age =  5 ; address = "Dublin" }
+        {firstName = "Gustavo"; lastName = "Leon"  ; age = 43 ; address = "Dole" }
+        {firstName = "Steve"  ; lastName = "Goguen"; age = 20 ; address = "?" }
     ]
 
 // Nested stuff
@@ -39,8 +39,8 @@ Results.Dump   {firstName = "Gustavo"; lastName = "Leon"; age = 43 ; address = "
 
 Results.Dump
     [
-        {firstName = "Gustavo"; lastName = "Leon"     ; age = 43 ; address = "Dole"   ; projects = ["F#+"; "ScrapeM" ]}
-        {firstName = "Eirik"  ; lastName = "Tsarpalis"; age =  5 ; address = "Dublin" ; projects = ["TypeShape"; "FsPickler" ]}
+        {firstName = "Gustavo"; lastName = "Leon"  ; age = 43 ; address = "Dole"   ; projects = ["F#+"; "ScrapeM" ; "FsPad" ]}
+        {firstName = "Steve"  ; lastName = "Goguen"; age = 20 ; address = "?" ; projects = ["Steego.NET"; "FsPad" ]}
     ]
 
 //  Recursively Defined Object

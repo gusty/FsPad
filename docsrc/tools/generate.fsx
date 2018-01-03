@@ -11,15 +11,15 @@
 // (This is the original behaviour of ProjectScaffold prior to multi project support)
 let referenceBinaries = []
 // Web site location for the generated documentation
-let website = "/FSharpPlus"
+let website = "/FsPad"
 
-let githubLink = "https://github.com/gusty/FSharpPlus"
+let githubLink = "https://github.com/gusty/FsPad"
 
 // Specify more information about your project
 let info =
   [ "project-name", "FsPad"
     "project-author", "Gusty"
-    "project-summary", "F#+ is a base library for F#."
+    "project-summary", "FsPad is an HTML based pretty-printer."
     "project-github", githubLink
     "project-nuget", "http://nuget.org/packages/FsPad" ]
 
@@ -32,14 +32,12 @@ let info =
 
 #I "../../bin/FsPad/net45/"
 
-#r "FsPad.dll"
 #r "FakeLib.dll"
 open Fake
 open System.IO
 open Fake.FileHelper
 open FSharp.Literate
 open FSharp.MetadataFormat
-open FsPad
 
 // When called from 'build.fsx', use the public project URL as <root>
 // otherwise, use the current 'output' directory.
@@ -115,11 +113,7 @@ let buildReference () =
   printfn "%s" pathIndex
   let ndx = 
     File.ReadAllLines pathIndex
-    //|> Array.split [[|System.String.Empty|]]
-    //|> Array.filter (fun x -> not (x |> Array.exists (fun e -> e.Contains("BaseLib"))))
-    //|> filter (fun x -> not (x |> exists (fun e -> e.Contains("FsControl.Internals Namespace"))))
-    //|> intercalate [|System.String.Empty|]
-  File.WriteAllLines(pathIndex, ndx)
+  File.WriteAllLines (pathIndex, ndx)
 
 // Build documentation from `fsx` and `md` files in `docs/content`
 let buildDocumentation () =
