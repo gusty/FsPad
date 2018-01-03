@@ -1,0 +1,82 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 15
+VisualStudioVersion = 15.0.27130.2010
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".paket", ".paket", "{63297B98-5CED-492C-A5B7-A5B4F73CF142}"
+	ProjectSection(SolutionItems) = preProject
+		paket.dependencies = paket.dependencies
+		paket.lock = paket.lock
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docs", "docs", "{A6A6AF7D-D6E3-442D-9B1E-58CC91879BE1}"
+EndProject
+Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "FsPad", "src\FsPad\FsPad.fsproj", "{EEE1F898-E8DF-4B3C-A237-F3A9E7D8FEC5}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "project", "project", "{BF60BC93-E09B-4E5F-9D85-95A519479D54}"
+	ProjectSection(SolutionItems) = preProject
+		build.fsx = build.fsx
+		README.md = README.md
+		RELEASE_NOTES.md = RELEASE_NOTES.md
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tools", "tools", "{83F16175-43B1-4C90-A1EE-8E351C33435D}"
+	ProjectSection(SolutionItems) = preProject
+		docsrc\tools\generate.fsx = docsrc\tools\generate.fsx
+		docsrc\tools\templates\template.cshtml = docsrc\tools\templates\template.cshtml
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "content", "content", "{8E6D5255-776D-4B61-85F9-73C37AA1FB9A}"
+	ProjectSection(SolutionItems) = preProject
+		docsrc\content\generic-doc.fsx = docsrc\content\generic-doc.fsx
+		docsrc\content\index.fsx = docsrc\content\index.fsx
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{ED8079DD-2B06-4030-9F0F-DC548F98E1C4}"
+EndProject
+Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "FsPad.Tests", "tests\FsPad.Tests\FsPad.Tests.fsproj", "{FED64B0A-3FD7-4357-98B6-0B01A3A26EC7}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{81F5F559-FD23-4E90-9EE6-3E2A2C1A7F96}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Debug|x64 = Debug|x64
+		Debug|x86 = Debug|x86
+		Release|Any CPU = Release|Any CPU
+		Release|x64 = Release|x64
+		Release|x86 = Release|x86
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{EEE1F898-E8DF-4B3C-A237-F3A9E7D8FEC5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EEE1F898-E8DF-4B3C-A237-F3A9E7D8FEC5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EEE1F898-E8DF-4B3C-A237-F3A9E7D8FEC5}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{EEE1F898-E8DF-4B3C-A237-F3A9E7D8FEC5}.Debug|x64.Build.0 = Debug|Any CPU
+		{EEE1F898-E8DF-4B3C-A237-F3A9E7D8FEC5}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{EEE1F898-E8DF-4B3C-A237-F3A9E7D8FEC5}.Debug|x86.Build.0 = Debug|Any CPU
+		{EEE1F898-E8DF-4B3C-A237-F3A9E7D8FEC5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EEE1F898-E8DF-4B3C-A237-F3A9E7D8FEC5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{EEE1F898-E8DF-4B3C-A237-F3A9E7D8FEC5}.Release|x64.ActiveCfg = Release|Any CPU
+		{EEE1F898-E8DF-4B3C-A237-F3A9E7D8FEC5}.Release|x64.Build.0 = Release|Any CPU
+		{EEE1F898-E8DF-4B3C-A237-F3A9E7D8FEC5}.Release|x86.ActiveCfg = Release|Any CPU
+		{EEE1F898-E8DF-4B3C-A237-F3A9E7D8FEC5}.Release|x86.Build.0 = Release|Any CPU
+		{FED64B0A-3FD7-4357-98B6-0B01A3A26EC7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FED64B0A-3FD7-4357-98B6-0B01A3A26EC7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FED64B0A-3FD7-4357-98B6-0B01A3A26EC7}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{FED64B0A-3FD7-4357-98B6-0B01A3A26EC7}.Debug|x64.Build.0 = Debug|Any CPU
+		{FED64B0A-3FD7-4357-98B6-0B01A3A26EC7}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{FED64B0A-3FD7-4357-98B6-0B01A3A26EC7}.Debug|x86.Build.0 = Debug|Any CPU
+		{FED64B0A-3FD7-4357-98B6-0B01A3A26EC7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FED64B0A-3FD7-4357-98B6-0B01A3A26EC7}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FED64B0A-3FD7-4357-98B6-0B01A3A26EC7}.Release|x64.ActiveCfg = Release|Any CPU
+		{FED64B0A-3FD7-4357-98B6-0B01A3A26EC7}.Release|x64.Build.0 = Release|Any CPU
+		{FED64B0A-3FD7-4357-98B6-0B01A3A26EC7}.Release|x86.ActiveCfg = Release|Any CPU
+		{FED64B0A-3FD7-4357-98B6-0B01A3A26EC7}.Release|x86.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {F3916AC4-72D7-4DBD-8983-49F7EF1A199E}
+	EndGlobalSection
+EndGlobal
