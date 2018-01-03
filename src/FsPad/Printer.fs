@@ -1,17 +1,4 @@
-﻿
-
-
-
-
-
-
-////////////////////////////////////////////////
-// END TYPESHAPE CODE
-////////////////////////////////////////////////
-
-
-
-
+﻿module FsPad.Printer
 
 // Linqpad style (hardcoded)
 
@@ -253,7 +240,8 @@ let footer = """</div></body>
 ////////////////////////////////////////////////////
 
 
-
+open System
+open FsPad.TypeShape
 
 type PrettyPrint =
     | List  of list<PrettyPrint>
@@ -291,7 +279,7 @@ and mkPrinterAux<'T> (ctx : RecTypeManager) : PrettyPrinter<'T> =
         }
 
     match shapeof<'T> with
-    | Shape.Unit -> wrap (fun _ v -> Value ("Unit", "()"))
+    | Shape.Unit -> wrap (fun _ _ -> Value ("Unit", "()"))
     | Shape.Bool -> wrap (fun _ v -> Value ("Boolean", sprintf "%b" v))
     | Shape.Byte -> wrap (fun _ (v:byte) -> Value ("Byte", sprintf "%duy" v))
     | Shape.Int32  -> wrap (fun _ v -> Value ("Int"  , string<int> v))
@@ -355,7 +343,7 @@ let pprint (level) (x:'t) = let p = mkPrinter<'t>() in p level x
 
 // HTML Generation
 
-let htmlEncode s = System.Web.HttpUtility.HtmlEncode(s)
+let htmlEncode s = System.Net.WebUtility.HtmlEncode(s)
 
 let rec traversePP x =
     match x with
@@ -399,7 +387,7 @@ let rec traversePP x =
                                 yield "</tr>"
                             yield "</table>" 
                             ] |> String.concat "  "
-        | Value (ty, vl) -> htmlEncode vl
+        | Value (_, vl) -> htmlEncode vl
         | MaxRecurse -> "..."
 
 let genhtml x = header + traversePP x + footer
@@ -408,33 +396,26 @@ let genhtml x = header + traversePP x + footer
 
 // Floating Window
 
-open System.IO
-open System.Windows.Forms
+//open System.IO
+//open System.Windows.Forms
 
-type Results() =
-    static let title = "FSI Results"
-    static let localUrl () = Path.GetTempFileName () + ".fspad.html"
-    static let getResultsWdw() =
-            let localUrl = localUrl ()
-            File.WriteAllText (localUrl, " use |> dump \"[title]\"")
-            let brw = new WebBrowser (Dock = DockStyle.Fill,Url = Uri localUrl)
-            let frm = new Form (Visible = true, Width = 256, Height = 768, Location = Drawing.Point (0, 0), Text = title)
-            frm.Controls.Add brw
-            brw
-    static let mutable resultsWdw = getResultsWdw()
-    static member Dump(objValue) = Results.Dump(objValue, 3)
-    static member Dump(objValue, maxLevel : int) =
-        let objName = "RESULTS !" 
-        if resultsWdw.IsDisposed then resultsWdw <- getResultsWdw ()
-        let localUrl = localUrl ()
-        File.WriteAllText (localUrl, objValue |> pprint maxLevel |> genhtml)
-        resultsWdw.FindForm().Text <- title + " - " + objName
-        resultsWdw.Url <- Uri localUrl
-        objValue
-
-
-
-
-
-
-
+//type Results() =
+//    static let title = "FSI Results"
+//    static let localUrl () = Path.GetTempFileName () + ".fspad.html"
+//    static let getResultsWdw() =
+//            let localUrl = localUrl ()
+//            File.WriteAllText (localUrl, " use |> dump \"[title]\"")
+//            let brw = new WebBrowser (Dock = DockStyle.Fill,Url = Uri localUrl)
+//            let frm = new Form (Visible = true, Width = 256, Height = 768, Location = Drawing.Point (0, 0), Text = title)
+//            frm.Controls.Add brw
+//            brw
+//    static let mutable resultsWdw = getResultsWdw()
+//    static member Dump(objValue) = Results.Dump(objValue, 3)
+//    static member Dump(objValue, maxLevel : int) =
+//        let objName = "RESULTS !" 
+//        if resultsWdw.IsDisposed then resultsWdw <- getResultsWdw ()
+//        let localUrl = localUrl ()
+//        File.WriteAllText (localUrl, objValue |> pprint maxLevel |> genhtml)
+//        resultsWdw.FindForm().Text <- title + " - " + objName
+//        resultsWdw.Url <- Uri localUrl
+//        objValue

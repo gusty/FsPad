@@ -1,0 +1,23 @@
+type project
+title
+    FSharpPlus
+owners
+    Gusty
+authors 
+    Gusty
+projectUrl
+    https://github.com/gusty/FsPad
+iconUrl
+    https://raw.github.com/gusty/FsPad/master/docs/files/img/logo.png
+licenseUrl
+    https://github.com/gusty/FsPad/blob/master/LICENSE.txt
+requireLicenseAcceptance
+    false
+copyright
+    Copyright 2018
+tags
+    FSharp
+summary
+    An HTML Pretty Printer
+description
+    An HTML Pretty Printer
