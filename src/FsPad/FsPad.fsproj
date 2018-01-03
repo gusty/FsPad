@@ -33,7 +33,13 @@
 
   <ItemGroup>
     <Compile Include="TypeShape.fs" />
+    <Compile Include="Printer.fsi" />
     <Compile Include="Printer.fs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    
+    <None Include="WinForms.fsx" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>
