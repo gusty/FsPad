@@ -1,8 +1,6 @@
-﻿module FsPad.Printer
+﻿module FsPad //  ignore-cat
 
-// Linqpad style (hardcoded)
-
-let header =
+let private header =
     """
 <!DOCTYPE HTML>
 <html>
@@ -241,7 +239,7 @@ let footer = """</div></body>
 
 
 open System
-open FsPad.TypeShape
+open TypeShape  // ignore-cat
 
 type PrettyPrint =
     | List  of list<PrettyPrint>
@@ -258,7 +256,7 @@ let rec mkPrinter<'T> () : PrettyPrinter<'T> =
     let ctx = new RecTypeManager()
     mkPrinterCached<'T> ctx
 
-and mkPrinterCached<'T> (ctx : RecTypeManager) : PrettyPrinter<'T> =
+and private mkPrinterCached<'T> (ctx : RecTypeManager) : PrettyPrinter<'T> =
     match ctx.TryFind<PrettyPrinter<'T>> () with
     | Some p -> p
     | None ->
@@ -266,7 +264,7 @@ and mkPrinterCached<'T> (ctx : RecTypeManager) : PrettyPrinter<'T> =
         let p = mkPrinterAux<'T> ctx
         ctx.Complete p
 
-and mkPrinterAux<'T> (ctx : RecTypeManager) : PrettyPrinter<'T> =
+and private mkPrinterAux<'T> (ctx : RecTypeManager) : PrettyPrinter<'T> =
     let wrap(p : PrettyPrinter<'a>) = unbox<PrettyPrinter<'T>> p
     let wrapNested(p : PrettyPrinter<'a>) = unbox<PrettyPrinter<'T>>(fun level x -> if level <= 0 then MaxRecurse else p level x)
 
@@ -392,30 +390,6 @@ let rec traversePP x =
 
 let genhtml x = header + traversePP x + footer
 
-
-
-// Floating Window
-
-//open System.IO
-//open System.Windows.Forms
-
-//type Results() =
-//    static let title = "FSI Results"
-//    static let localUrl () = Path.GetTempFileName () + ".fspad.html"
-//    static let getResultsWdw() =
-//            let localUrl = localUrl ()
-//            File.WriteAllText (localUrl, " use |> dump \"[title]\"")
-//            let brw = new WebBrowser (Dock = DockStyle.Fill,Url = Uri localUrl)
-//            let frm = new Form (Visible = true, Width = 256, Height = 768, Location = Drawing.Point (0, 0), Text = title)
-//            frm.Controls.Add brw
-//            brw
-//    static let mutable resultsWdw = getResultsWdw()
-//    static member Dump(objValue) = Results.Dump(objValue, 3)
-//    static member Dump(objValue, maxLevel : int) =
-//        let objName = "RESULTS !" 
-//        if resultsWdw.IsDisposed then resultsWdw <- getResultsWdw ()
-//        let localUrl = localUrl ()
-//        File.WriteAllText (localUrl, objValue |> pprint maxLevel |> genhtml)
-//        resultsWdw.FindForm().Text <- title + " - " + objName
-//        resultsWdw.Url <- Uri localUrl
-//        objValue
+type Printer() = 
+    static member Print(value, maxLevel) = value |> pprint maxLevel |> genhtml
+    static member Print(value) = value |> pprint 2 |> genhtml
