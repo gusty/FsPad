@@ -277,14 +277,14 @@ and private mkPrinterAux<'T> (ctx : RecTypeManager) : PrettyPrinter<'T> =
         }
 
     match shapeof<'T> with
-    | Shape.Unit -> wrap (fun _ _ -> Value ("Unit", "()"))
-    | Shape.Bool -> wrap (fun _ v -> Value ("Boolean", sprintf "%b" v))
-    | Shape.Byte -> wrap (fun _ (v:byte) -> Value ("Byte", sprintf "%duy" v))
-    | Shape.Int32  -> wrap (fun _ v -> Value ("Int"  , string<int> v))
-    | Shape.Int64  -> wrap (fun _ v -> Value ("Int64", string<int64> v))
-    | Shape.Double  -> wrap (fun _ v -> Value ("Float", string<float> v))
-    | Shape.String -> wrap (fun _ v -> Value ("String", v))
-    | Shape.DateTime       -> wrap (fun _ (b:DateTime) -> Value ("DateTime", sprintf "(%i, %i, %i, %i, %i, %i, %i)" b.Year b.Month b.Day b.Hour b.Minute b.Second b.Millisecond))
+    | Shape.Unit     -> wrap (fun _ _ -> Value ("Unit", "()"))
+    | Shape.Bool     -> wrap (fun _ v -> Value ("Boolean", sprintf "%b" v))
+    | Shape.Byte     -> wrap (fun _ (v:byte) -> Value ("Byte", sprintf "%duy" v))
+    | Shape.Int32    -> wrap (fun _ v -> Value ("Int"  , string<int> v))
+    | Shape.Int64    -> wrap (fun _ v -> Value ("Int64", string<int64> v))
+    | Shape.Double   -> wrap (fun _ v -> Value ("Float", string<float> v))
+    | Shape.String   -> wrap (fun _ v -> Value ("String", v))
+    | Shape.DateTime -> wrap (fun _ (b:DateTime) -> Value ("DateTime", sprintf "(%i, %i, %i, %i, %i, %i, %i)" b.Year b.Month b.Day b.Hour b.Minute b.Second b.Millisecond))
 
     // | Shape.FSharpOption s -> TODO
 
@@ -343,53 +343,53 @@ let pprint (level) (x:'t) = let p = mkPrinter<'t>() in p level x
 
 let htmlEncode s = System.Net.WebUtility.HtmlEncode(s)
 
-let rec traversePP x =
-    match x with
-    | List lst -> 
-        let fields =
-            lst |> Seq.fold (fun (s:Set<string>) x -> 
-                    match x with
-                    | Table x ->
-                        let c = List.map (fun {name = n} -> n) x
-                        set c + s
-                    | _ -> s
-            ) Set.empty
-
-        let body =
-                [
-                    yield "<table>"
-                    yield "<tr>"
-                    for j in fields do
-                        yield "<th>" + htmlEncode j + "</th>"
-                    yield "</tr>"
-
-                    for e in lst do
-                        match e with
-                        | Table item ->
-                            yield "<tr>"
-                            for f in item do
-                                yield "<td>" + traversePP f.value + "</td>"
-                            yield "</tr>"
-                        | other -> yield "<tr><td>" + traversePP other + "</td></tr>"
-                    yield "</table>" 
-                    ] |> String.concat "  "
-        body
-     
-        | Table fields ->
-                        [
-                            yield "<table>"                            
-                            for f in fields do
-                                yield "<tr>"
-                                yield "<th>" + htmlEncode f.name + "</th>"
-                                yield "<td>" + traversePP f.value + "</td>"
-                                yield "</tr>"
-                            yield "</table>" 
-                            ] |> String.concat "  "
+let render x =
+    let rec render x =
+        match x with
         | Value (_, vl) -> htmlEncode vl
         | MaxRecurse -> "..."
+        | Table fields ->
+            [
+                yield "<table>"                            
+                for f in fields do
+                    yield "<tr>"
+                    yield "<th>" + htmlEncode f.name + "</th>"
+                    yield "<td>" + render f.value + "</td>"
+                    yield "</tr>"
+                yield "</table>" 
+                ] |> String.concat "  "
+        | List lst -> 
+            let fields =
+                lst |> Seq.fold (fun (s:Set<string>) x -> 
+                        match x with
+                        | Table x ->
+                            let c = List.map (fun {name = n} -> n) x
+                            set c + s
+                        | _ -> s
+                ) Set.empty
 
-let genhtml x = header + traversePP x + footer
+            let body =
+                    [
+                        yield "<table>"
+                        yield "<tr>"
+                        for j in fields do
+                            yield "<th>" + htmlEncode j + "</th>"
+                        yield "</tr>"
+
+                        for e in lst do
+                            match e with
+                            | Table item ->
+                                yield "<tr>"
+                                for f in item do
+                                    yield "<td>" + render f.value + "</td>"
+                                yield "</tr>"
+                            | other -> yield "<tr><td>" + render other + "</td></tr>"
+                        yield "</table>" 
+                        ] |> String.concat "  "
+            body
+
+    header + render x + footer
 
 type Printer() = 
-    static member Print(value, maxLevel) = value |> pprint maxLevel |> genhtml
-    static member Print(value) = value |> pprint 2 |> genhtml
+    static member Print (value, maxLevel) = value |> pprint maxLevel |> render
+    static member Print (value) = value |> pprint 2 |> render
