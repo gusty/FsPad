@@ -358,31 +358,43 @@ let pprint (level) (x:'t) = let p = mkPrinter<'t>() in p level x
 
 let htmlEncode s = System.Net.WebUtility.HtmlEncode(s)
 
+
 let render x =
-    let rec render x =
+    let rec render forceTabular td x =
         match x with        
         | MaxRecurse -> "..."
-        | Value (ty, vl) ->
-            htmlEncode vl
+        | Value (ty, vl) -> 
+            if not td then htmlEncode vl
+            else  "<td>" + htmlEncode vl + "</td>"
+            
         | Optn lst ->
+            if not td then
                 match lst with
-                | Some x -> render x
-                | None   -> render (Value ("", "-"))
+                | Some x -> render false false x
+                | None   -> render false false (Value ("", "-"))
+            else
+                match lst with
+                | Some x -> "<td style=some>" + render false false (Optn lst) + "</td>"
+                | None   -> "<td class=none>" + render false false (Optn lst) + "</td>"
+
         | Table fields ->
+            
             seq {
-                yield "<table>"                            
-                for f in fields do
-                    yield "<tr>"
-                    yield "<th>" + htmlEncode f.name + "</th>"
-                    match f.value with
-                    | Optn x as vl->
-                        match x with
-                        | Some x -> yield "<td style=some>" + render vl + "</td>"
-                        | None   -> yield "<td class=none>" + render vl + "</td>"
-                    | other ->
-                        yield "<td>" + render other + "</td>"
-                    yield "</tr>"
-                yield "</table>" 
+                
+                if forceTabular then
+
+                    for f in fields do
+                        yield render false true f.value
+                else
+                    if td then yield "<td>"
+                    yield "<table>"                            
+                    for f in fields do
+                        yield "<tr>"
+                        yield "<th>" + htmlEncode f.name + "</th>"
+                        yield render false true f.value
+                        yield "</tr>"
+                    yield "</table>" 
+                    if td then yield "</td>"
                 } |> String.concat "  "
         | List lst -> 
             let fields =
@@ -403,29 +415,15 @@ let render x =
                         yield "</tr>"
 
                         for e in lst do
-                            match e with
-                            | Table item ->
-                                yield "<tr>"
-                                for f in item do
-                                    
-                                    match f.value with
-                                    | Optn x as vl->
-                                        match x with
-                                        | Some x -> yield "<td style=some>" + render vl + "</td>"
-                                        | None   -> yield "<td class=none>" + render vl + "</td>"
-                                    | other ->
-                                        yield "<td>" + render other + "</td>"
-                                yield "</tr>"
-                            | Optn x as vl->
-                                match x with
-                                | Some x -> yield "<tr><td class=some>" + render vl + "</td></tr>"
-                                | None   -> yield "<tr><td class=none>" + render vl + "</td></tr>"
-                            | other -> yield "<tr><td>" + render other + "</td></tr>"
+                            yield "<tr>"
+                            yield render true true e
+                            yield "</tr>"
                         yield "</table>" 
                         } |> String.concat "  "
-            body
+            if not td then body
+            else "<td>" + body + "</td>"
 
-    header + render x + footer
+    header + render false false x + footer
 
 type Printer() = 
     static member Print (value, maxLevel) = value |> pprint maxLevel |> render
