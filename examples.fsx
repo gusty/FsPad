@@ -49,6 +49,17 @@ type Tree<'a>(value:'a, getEdges:'a -> seq<'a>) =
     member this.Value = value
     member this.Children = list.Value
 
-let tree1 = Tree(1, fun x -> seq { for x in x..2 -> x })
+let tree1 = Tree(Some 1, fun (Some x) -> seq { for x in x..2 -> Some x })
 
 dump (tree1, 9)
+
+
+// List of option
+[Some 1; None; Some 4] |> dump
+
+// List of tuples, some of them are options
+[1..30] |> List.map (fun x -> ( (if x % 2 = 0 then Some x else None), x, if x % 3 = 0 then Some x else None) ) |> dump
+
+// List of record, some fields are options
+type Tab<'a,'b,'c> = { a : 'a ; b : 'b ; c : 'c }
+[1..30] |> List.map (fun x -> {a = (if x % 2 = 0 then Some x else None); b = x; c = if x % 3 = 0 then Some x else None} ) |> dump

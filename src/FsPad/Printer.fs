@@ -40,6 +40,16 @@ table.error {
 	border-bottom-width: 4px;
 }
 
+table td.some
+{
+   border: 2px solid LightGray;
+}      
+      
+table td.none
+{
+   background-image: linear-gradient(to bottom right,  transparent calc(50% - 1px), lightgray, transparent calc(50% + 1px)); 
+}
+
 td, th {
 	vertical-align: top;
 	border: 1px solid #aaa;
@@ -243,6 +253,7 @@ open TypeShape  // ignore-cat
 
 type PrettyPrint =
     | List  of list<PrettyPrint>
+    | Optn  of option<PrettyPrint>
     | Table of list<Field>
     | Value of string * string
     | MaxRecurse
@@ -286,7 +297,11 @@ and private mkPrinterAux<'T> (ctx : RecTypeManager) : PrettyPrinter<'T> =
     | Shape.String   -> wrap (fun _ v -> Value ("String", v))
     | Shape.DateTime -> wrap (fun _ (b:DateTime) -> Value ("DateTime", sprintf "(%i, %i, %i, %i, %i, %i, %i)" b.Year b.Month b.Day b.Hour b.Minute b.Second b.Millisecond))
 
-    // | Shape.FSharpOption s -> TODO
+    | Shape.FSharpOption s ->
+        s.Accept { new IFSharpOptionVisitor<PrettyPrinter<'T>> with
+                    member __.Visit<'a> () = 
+                        let tp = mkPrinterCached<'a> ctx 
+                        wrapNested (fun level x -> x |> Option.map (tp (level - 1)) |> Optn) }
 
     | Shape.FSharpList s ->
         s.Accept { new IFSharpListVisitor<PrettyPrinter<'T>> with
@@ -345,16 +360,27 @@ let htmlEncode s = System.Net.WebUtility.HtmlEncode(s)
 
 let render x =
     let rec render x =
-        match x with
-        | Value (_, vl) -> htmlEncode vl
+        match x with        
         | MaxRecurse -> "..."
+        | Value (ty, vl) ->
+            htmlEncode vl
+        | Optn lst ->
+                match lst with
+                | Some x -> render x
+                | None   -> render (Value ("", "-"))
         | Table fields ->
             seq {
                 yield "<table>"                            
                 for f in fields do
                     yield "<tr>"
                     yield "<th>" + htmlEncode f.name + "</th>"
-                    yield "<td>" + render f.value + "</td>"
+                    match f.value with
+                    | Optn x as vl->
+                        match x with
+                        | Some x -> yield "<td style=some>" + render vl + "</td>"
+                        | None   -> yield "<td class=none>" + render vl + "</td>"
+                    | other ->
+                        yield "<td>" + render other + "</td>"
                     yield "</tr>"
                 yield "</table>" 
                 } |> String.concat "  "
@@ -381,8 +407,19 @@ let render x =
                             | Table item ->
                                 yield "<tr>"
                                 for f in item do
-                                    yield "<td>" + render f.value + "</td>"
+                                    
+                                    match f.value with
+                                    | Optn x as vl->
+                                        match x with
+                                        | Some x -> yield "<td style=some>" + render vl + "</td>"
+                                        | None   -> yield "<td class=none>" + render vl + "</td>"
+                                    | other ->
+                                        yield "<td>" + render other + "</td>"
                                 yield "</tr>"
+                            | Optn x as vl->
+                                match x with
+                                | Some x -> yield "<tr><td class=some>" + render vl + "</td></tr>"
+                                | None   -> yield "<tr><td class=none>" + render vl + "</td></tr>"
                             | other -> yield "<tr><td>" + render other + "</td></tr>"
                         yield "</table>" 
                         } |> String.concat "  "
