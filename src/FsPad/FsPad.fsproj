@@ -30,16 +30,20 @@
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <!--<OutputPath>..\..\bin</OutputPath>-->
   </PropertyGroup>
+  <ItemGroup>
+    <EmbeddedResource Remove="assets\**" />
+  </ItemGroup>
 
   <ItemGroup>
+    <Content Include="linqpadstyle.html" />
+    <Compile Include="AssemblyInfo.fs" />
+    <Compile Include="FsHtml.fs" />
+    <Compile Include="Representation.fs" />
     <Compile Include="TypeShape.fs" />
-    <Compile Include="Printer.fsi" />
     <Compile Include="Printer.fs" />
+    <Compile Include="StaticHtml.fs" />
+    <None Include="FsPad.fsx" />
   </ItemGroup>
 
-  <ItemGroup>
-    
-    <None Include="WinForms.fsx" />
-  </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

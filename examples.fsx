@@ -1,4 +1,4 @@
-#load "FsPad.fsx"
+#load "src\FsPad\FsPad.fsx"
 
 open FsPad
 open System
@@ -43,16 +43,15 @@ dump
         {firstName = "Steve"  ; lastName = "Goguen"; age = 20 ; address = "?" ; projects = ["Steego.NET"; "FsPad" ]}
     ]
 
-//  Recursively Defined Object
-type Tree<'a>(value:'a, getEdges:'a -> seq<'a>) = 
-    let list = lazy [ for e in getEdges(value) -> Tree(e, getEdges) ]
-    member this.Value = value
-    member this.Children = list.Value
+////  Recursively Defined Object
+//type Tree<'a>(value:'a, getEdges:'a -> seq<'a>) = 
+//    let list = lazy [ for e in getEdges(value) -> Tree(e, getEdges) ]
+//    member this.Value = value
+//    member this.Children = list.Value
 
-let tree1 = Tree(Some 1, fun (Some x) -> seq { for x in x..2 -> Some x })
+//let tree1 = Tree(Some 1, fun (Some x) -> seq { for x in x..2 -> Some x })
 
-dump (tree1, 9)
-
+//dump (tree1, 9)
 
 // List of option
 [Some 1; None; Some 4] |> dump

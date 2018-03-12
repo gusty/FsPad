@@ -1,4 +1,212 @@
-﻿
+﻿module FsHtml
+
+type Html =
+   | Elem of string * Html list
+   | Attr of string * string
+   | Text of string
+   with
+   static member toString elem =
+      let rec toString indent elem =
+         let spaces = String.replicate indent " "
+         match elem with
+         | Attr(name,value) -> name+"=\""+value+"\""
+         | Elem(tag, [Text s]) ->
+            spaces+"<"+tag+">"+s+"</"+tag+">\r\n"
+         | Elem(tag, content) ->
+            let isAttr = function Attr _ -> true | _ -> false
+            let attrs, elems = content |> List.partition isAttr
+            let attrs =         
+               if attrs = [] then ""
+               else " " + String.concat " " [for attr in attrs -> toString 0 attr]
+            match elems with
+            | [] -> spaces+"<"+tag+attrs+"/>\r\n"
+            | _ ->
+               spaces+"<"+tag+attrs+">\r\n"+
+                  String.concat "" [for e in elems -> toString (indent+1) e] +
+                     spaces+"</"+tag+">\r\n"
+         | Text(text) ->            
+            spaces + text + "\r\n"
+      toString 0 elem
+   override this.ToString() = Html.toString this
+
+let elem tag content = Elem(tag,content)
+let html = elem "html"
+let head = elem "head"
+let title = elem "title"
+let style = elem "style"
+let body = elem "body"
+let div = elem "div"
+let br = elem "br"
+let section = elem "section"
+let span = elem "span"
+let table = elem "table"
+let thead = elem "thead"
+let tbody = elem "tbody"
+let tfoot = elem "tfoot"
+let img = elem "img"
+let map = elem "map"
+let area = elem "area"
+let p = elem "p"
+let a = elem "a"
+let tr = elem "tr"
+let td = elem "td"
+let th = elem "th"
+let ul = elem "ul"
+let li = elem "li"
+let h1 = elem "h1"
+let h2 = elem "h2"
+let h3 = elem "h3"
+let h4 = elem "h4"
+let strong = elem "strong"
+let (~%) s = [Text(s.ToString())]
+let (%=) name value = Attr(name,value)
+namespace FsPad
+
+open System
+
+module Representation = 
+
+    /// A primitive value that has a JavaScript representation.
+    type Primitive = obj
+
+    type ChunkId = System.Guid
+
+    /// A named field with a value (i.e. a field or a column in the UI)
+    type FieldValue<'label> = { name: string; value: LabelledNode<'label> }
+
+    /// Tree representing the value with extra information.
+    and LabelledNode<'label> = 
+        /// Primitive value.
+        | Scalar of 'label * Primitive
+        /// A sequence of values
+        | Sequence of 'label * LabelledNode<'label> list
+        /// A complex value
+        | Mapping of 'label * FieldValue<'label> list
+        /// A value to be calculated lazily - we will maintain a collection
+        /// of chunks keyed by ids to be evaluated on demand, though we'd need
+        /// to have a server around for that.
+        | Chunk of 'label * ChunkId
+        member this.Label = 
+            match this with
+            | Scalar (lbl, _) 
+            | Sequence (lbl, _)
+            | Mapping (lbl, _)
+            | Chunk (lbl, _) -> lbl
+
+    /// Type of the named field. 
+    type FieldType<'label> = { name: string; schema: 'label }
+
+    /// Discriminates different variants of types in F# that we might want to
+    /// distinguish in the UI.
+    type Variant = 
+        | Primitive
+        | Poco
+        | Record
+        | Union
+        | Collection
+        | Tuple
+        | Function
+
+    /// This can be used to match a template for the display.
+    /// It should be expressive enough for us to be able to have different templates for:
+    /// - discriminated unions in general
+    /// - options specifically
+    /// - int options (if it somehow made sense to have something very specific for them)
+    type TypePattern = 
+        {
+            typeName: string
+            variant: Variant
+            genericTypeArgs: TypePattern list
+        }
+        member pattern.DisplayName =
+            match pattern.genericTypeArgs with 
+            | [] -> sprintf "%s" pattern.typeName
+            | other -> 
+                if pattern.variant = Variant.Tuple then
+                    String.Join(" * ", List.map (fun (x: TypePattern) -> x.DisplayName) other)
+                else
+                    let args = 
+                        String.Join(",", List.map (fun (x: TypePattern) -> x.DisplayName) other)
+                    sprintf "%s<%s>" pattern.typeName args
+
+    /// Captures information about the type.
+    type Schema =
+        {
+            /// .NET reflected type name (or an F# shorthand where we care)
+            fullTypeName: string
+            /// A structural representation of the type rich enough to generate table
+            /// headers from.
+            structuralType: FieldType<Schema> list
+            /// Pattern to match a UI template on for display.
+            typePattern: TypePattern
+        }
+        member this.DisplayName = this.typePattern.DisplayName
+
+    type TypedNode = LabelledNode<Schema>
+
+module Reflection = 
+    
+    open Representation
+    open System.Reflection
+    open FSharp.Reflection
+    open System.Collections
+
+    type Variant with
+        static member FromType(typ: Type) = 
+            let ienum = typeof<IEnumerable>
+            match typ with
+            | _ when typ = typeof<string>        -> Variant.Primitive
+            | _ when ienum.IsAssignableFrom(typ) -> Variant.Collection
+            | _ when FSharpType.IsFunction(typ)  -> Variant.Function
+            | _ when FSharpType.IsRecord(typ)    -> Variant.Record
+            | _ when FSharpType.IsTuple(typ)     -> Variant.Tuple
+            | _ when FSharpType.IsUnion(typ)     -> Variant.Union
+            | _ when typ.IsPrimitive             -> Variant.Primitive
+            | _ -> Variant.Poco
+
+    let rec generateTypePattern (typ: Type) : TypePattern =
+        {
+            typeName = typ.Name
+            variant = Variant.FromType(typ)
+            genericTypeArgs = 
+                if typ.IsGenericType then
+                    [ for arg in typ.GenericTypeArguments -> generateTypePattern arg ]
+                else []
+        }
+
+    let rec generateStructuralType (typ: Type) : FieldType<Schema> list =
+        let variant = Variant.FromType(typ)
+        match variant with
+        | Variant.Record ->
+            let fields = FSharpType.GetRecordFields(typ, true) 
+            [ for prop in fields -> { name = prop.Name; schema = generateSchema prop.PropertyType } ]
+        | Variant.Tuple -> 
+            FSharpType.GetTupleElements(typ)
+            |> Seq.mapi (fun idx e -> 
+                { name = sprintf "#%d" (idx + 1); schema = generateSchema e })
+            |> List.ofSeq
+        | Variant.Collection -> 
+            let argTyp = 
+                if typ.IsGenericType then
+                    Some <| typ.GenericTypeArguments.[0]
+                elif typ.IsArray then
+                    Some <| typ.GetElementType()
+                else    
+                    None
+                    
+            match argTyp with
+            | Some t -> generateStructuralType t
+            | None -> []
+        | _ -> []
+
+    and generateSchema (typ: Type) : Schema =         
+        {
+            fullTypeName = typ.FullName
+            structuralType = generateStructuralType typ               
+            typePattern = generateTypePattern typ
+        }
+module TypeShape
+
 open System
 open System.Collections.Generic
 open System.Runtime.Serialization
@@ -24,7 +232,6 @@ type ITypeShapeVisitor<'R> =
 /// Encapsulates a type variable that can be accessed using type shape visitors
 [<AbstractClass>]
 type TypeShape =
-    [<CompilerMessage("TypeShape constructor should not be consumed.", 4224)>]
     internal new () = { }
     abstract Type : Type
     abstract ShapeInfo : TypeShapeInfo
@@ -164,18 +371,18 @@ let tshapeof<'T> = TypeShape.Create<'T>()
 
 type IEnumVisitor<'R> =
     abstract Visit<'Enum, 'Underlying when 'Enum : enum<'Underlying>
-                                       and 'Enum : struct
-                                       and 'Enum :> ValueType
-                                       and 'Enum : (new : unit -> 'Enum)> : unit -> 'R
+                                        and 'Enum : struct
+                                        and 'Enum :> ValueType
+                                        and 'Enum : (new : unit -> 'Enum)> : unit -> 'R
 
 type IShapeEnum =
     abstract Underlying : TypeShape
     abstract Accept : IEnumVisitor<'R> -> 'R
 
 type private ShapeEnum<'Enum, 'Underlying when 'Enum : enum<'Underlying>
-                                           and 'Enum : struct
-                                           and 'Enum :> ValueType
-                                           and 'Enum : (new : unit -> 'Enum)>() =
+                                            and 'Enum : struct
+                                            and 'Enum :> ValueType
+                                            and 'Enum : (new : unit -> 'Enum)>() =
     interface IShapeEnum with
         member __.Underlying = shapeof<'Underlying>
         member __.Accept v = v.Visit<'Enum, 'Underlying> ()
@@ -2324,406 +2531,333 @@ type BinSearch<'T when 'T : comparison>(inputs : 'T[]) =
                 | _ -> lb <- i + 1
 
             if found then indices.[i] else -1
-
-let private header =
-    """
-<!DOCTYPE HTML>
-<html>
-    <head>
-    <meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
-	<meta http-equiv="X-UA-Compatible" content="IE=edge" />
-    <meta name="Generator" content="LINQ to XML, baby!" />
-    <style type='text/css'>
-body {
-	margin: 0.3em 0.3em 0.4em 0.4em;
-	font-family: Verdana;
-	font-size: 80%;
-	background: white
-}
-
-p, pre {
-	margin:0;
-	padding:0;
-	font-family: Verdana;
-}
-
-table {
-	border-collapse: collapse;
-	border: 2px solid #17b;
-	margin: 0.3em 0.2em;
-}
-
-table.limit {
-	border-bottom-color: #c31;
-}
-
-table.expandable {
-	border-bottom-style: dashed;
-}
-
-table.error {
-	border-bottom-width: 4px;
-}
-
-td, th {
-	vertical-align: top;
-	border: 1px solid #aaa;
-	padding: 0.1em 0.2em;
-	margin: 0;
-}
-
-th {
-	text-align: left;
-	background-color: #ddd;
-	border: 1px solid #777;
-	font-family: tahoma;
-	font-size:90%;
-	font-weight: bold;
-}
-
-th.member {
-	padding: 0.1em 0.2em 0.1em 0.2em;
-}
-
-td.typeheader {
-	font-family: tahoma;
-	font-size: 100%;
-	font-weight: bold;
-	background-color: #17b;
-	color: white;
-	padding: 0 0.2em 0.15em 0.1em;
-}
-
-td.n { text-align: right }
-
-a:link.typeheader, a:visited.typeheader, a:link.extenser, a:visited.extenser, a:link.fixedextenser, a:visited.fixedextenser {
-	font-family: tahoma;
-	font-size: 90%;
-	font-weight: bold;
-	text-decoration: none;
-	background-color: #17b;
-	color: white;
-	float:left;
-}
-
-a:link.extenser, a:visited.extenser, a:link.fixedextenser, a:visited.fixedextenser {
-	float:right; 
-	padding-left:2pt;
-	margin-left:4pt
-}
-
-span.typeglyph, span.typeglyphx {
-	padding: 0 0.2em 0 0;
-	margin: 0;
-}
-
-span.extenser, span.extenserx, span.fixedextenser {	
-	margin-top:1.2pt;
-}
-
-span.typeglyph, span.extenser, span.fixedextenser {
-	font-family: webdings;
-}
-
-span.fixedextenser {
-	display:none;
-	position:fixed;
-	right:6px;
-}
-
-td.typeheader:hover .fixedextenser {
-	display:block
-}
-
-span.typeglyphx, span.extenserx {
-	font-family: arial;
-	font-weight: bold;
-	margin: 2px;
-}
-
-table.group {
-	border: none;
-	margin: 0;
-}
-
-td.group {
-	border: none;
-	padding: 0 0.1em;
-}
-
-div.spacer { margin: 0.6em 0; }
-
-table.headingpresenter {
-	border: none;
-	border-left: 3px dotted #1a5;
-	margin: 1em 0em 1.2em 0.15em;
-}
-
-th.headingpresenter {
-	font-family: Arial;
-	border: none;
-	padding: 0 0 0.2em 0.5em;
-	background-color: white;
-	color: green;
-	font-size: 110%;        
-}
-
-td.headingpresenter {
-	border: none;
-	padding: 0 0 0 0.6em;
-}
-
-td.summary { 
-	background-color: #def;
-	color: #024;
-	font-family: Tahoma;
-	padding: 0 0.1em 0.1em 0.1em;
-}
-
-td.columntotal {
-	font-family: Tahoma;
-	background-color: #eee;
-	font-weight: bold;
-	color: #17b;
-	font-size:90%;
-	text-align:right;
-}
-
-span.graphbar {
-	background: #17b;
-	color: #17b;
-	margin-left: -2px;
-	margin-right: -2px;
-}
-
-a:link.graphcolumn, a:visited.graphcolumn {
-	color: #17b;
-	text-decoration: none;
-	font-weight: bold;
-	font-family: Arial;
-	font-size: 110%;
-	letter-spacing: -0.2em;	
-	margin-left: 0.3em;
-	margin-right: 0.1em;
-}
-
-a:link.collection, a:visited.collection { color:green }
-
-a:link.reference, a:visited.reference { color:blue }
-
-i { color: green }
-
-em { color:red; }
-
-span.highlight { background: #ff8 }
-
-code { font-family: Consolas }
-
-code.xml b { color:blue; font-weight:normal }
-code.xml i { color:maroon; font-weight:normal; font-style:normal }
-code.xml em { color:red; font-weight:normal; font-style:normal }
-    </style>
-
-    <script language='JavaScript' type='text/javascript'>
-
-
-	    function toggle(id)
-        {
-        table = document.getElementById(id);
-        if (table == null) return false;
-        updown = document.getElementById(id + 'ud');
-        if (updown == null) return false;
-        if (updown.innerHTML == '5' || updown.innerHTML == '6') {
-            expand = updown.innerHTML == '6';
-            updown.innerHTML = expand ? '5' : '6';
-        } else {
-            expand = updown.innerHTML == '˅';
-            updown.innerHTML = expand ? '˄' : '˅';
-        }
-        table.style.borderBottomStyle = expand ? 'solid' : 'dashed';
-        elements = table.rows;
-        if (elements.length == 0 || elements.length == 1) return false;
-        for (i = 1; i != elements.length; i++)
-            if (elements[i].id.substring(0,3) != 'sum')
-            elements[i].style.display = expand ? 'table-row' : 'none';
-        return false;
-        }
-    
-    </script>
-    </head>
-<body><div class="spacer">
-"""
-
-let footer = """</div></body>
-</html>"""
-
-
-////////////////////////////////////////////////////
-// END Linqpad style
-////////////////////////////////////////////////////
-
+namespace FsPad
 
 open System
+open TypeShape
 
-type PrettyPrint =
-    | List  of list<PrettyPrint>
-    | Table of list<Field>
-    | Value of string * string
-    | MaxRecurse
-and Field = {name : string; value : PrettyPrint}
+module Printer = 
+    open Representation
+    open Reflection
 
-type PrettyPrinter<'T> = int -> 'T -> PrettyPrint
+    //type Schema = string
+    type TypedNode = LabelledNode<Schema>
+    type PrettyPrinter<'T> = int -> 'T -> TypedNode
 
 // Generic value to PrettyPrint
 
-let rec mkPrinter<'T> () : PrettyPrinter<'T> =
-    let ctx = new RecTypeManager()
-    mkPrinterCached<'T> ctx
+    let rec mkPrinter<'T> () : PrettyPrinter<'T> =
+        let ctx = new RecTypeManager()
+        mkPrinterCached<'T> ctx
 
-and private mkPrinterCached<'T> (ctx : RecTypeManager) : PrettyPrinter<'T> =
-    match ctx.TryFind<PrettyPrinter<'T>> () with
-    | Some p -> p
-    | None ->
-        let _ = ctx.CreateUninitialized<PrettyPrinter<'T>>(fun c t -> c.Value t)
-        let p = mkPrinterAux<'T> ctx
-        ctx.Complete p
+    and private mkPrinterCached<'T> (ctx : RecTypeManager) : PrettyPrinter<'T> =
+        match ctx.TryFind<PrettyPrinter<'T>> () with
+        | Some p -> p
+        | None ->
+            let _ = ctx.CreateUninitialized<PrettyPrinter<'T>>(fun c t -> c.Value t)
+            let p = mkPrinterAux<'T> ctx
+            ctx.Complete p
 
-and private mkPrinterAux<'T> (ctx : RecTypeManager) : PrettyPrinter<'T> =
-    let wrap(p : PrettyPrinter<'a>) = unbox<PrettyPrinter<'T>> p
-    let wrapNested(p : PrettyPrinter<'a>) = unbox<PrettyPrinter<'T>>(fun level x -> if level <= 0 then MaxRecurse else p level x)
+    and private mkPrinterAux<'T> (ctx : RecTypeManager) : PrettyPrinter<'T> =
+        let wrap(p : PrettyPrinter<'a>) = unbox<PrettyPrinter<'T>> p
+        let wrapNested(p : PrettyPrinter<'a>) = unbox<PrettyPrinter<'T>>(fun level x -> if level <= 0 then Chunk (generateSchema typeof<'T>, Guid()) else p level x)
 
-    let mkFieldPrinter (field : IShapeMember<'DeclaringType>) =
-        field.Accept {
-            new IMemberVisitor<'DeclaringType, string * (PrettyPrinter<'DeclaringType>)> with
-                member __.Visit(field : ShapeMember<'DeclaringType, 'Field>) =
-                    let fp = mkPrinterCached<'Field> ctx
-                    field.Label, (fun l x -> x |> field.Project |> fp l)
-        }
+        let mkFieldPrinter (field : IShapeMember<'DeclaringType>) =
+            field.Accept {
+                new IMemberVisitor<'DeclaringType, string * (PrettyPrinter<'DeclaringType>)> with
+                    member __.Visit(field : ShapeMember<'DeclaringType, 'Field>) =
+                        let fp = mkPrinterCached<'Field> ctx
+                        field.Label, (fun l x -> x |> field.Project |> fp l)
+            }
 
-    match shapeof<'T> with
-    | Shape.Unit -> wrap (fun _ _ -> Value ("Unit", "()"))
-    | Shape.Bool -> wrap (fun _ v -> Value ("Boolean", sprintf "%b" v))
-    | Shape.Byte -> wrap (fun _ (v:byte) -> Value ("Byte", sprintf "%duy" v))
-    | Shape.Int32  -> wrap (fun _ v -> Value ("Int"  , string<int> v))
-    | Shape.Int64  -> wrap (fun _ v -> Value ("Int64", string<int64> v))
-    | Shape.Double  -> wrap (fun _ v -> Value ("Float", string<float> v))
-    | Shape.String -> wrap (fun _ v -> Value ("String", v))
-    | Shape.DateTime       -> wrap (fun _ (b:DateTime) -> Value ("DateTime", sprintf "(%i, %i, %i, %i, %i, %i, %i)" b.Year b.Month b.Day b.Hour b.Minute b.Second b.Millisecond))
+        match shapeof<'T> with
+        | Shape.Unit     -> wrap (fun _ _        -> Scalar (generateSchema typeof<unit>    , "()"))
+        | Shape.Bool     -> wrap (fun _ v        -> Scalar (generateSchema typeof<Boolean> , sprintf "%b" v))
+        | Shape.Byte     -> wrap (fun _ (v:byte) -> Scalar (generateSchema typeof<Byte> , sprintf "%duy" v))
+        | Shape.Char     -> wrap (fun _ v        -> Scalar (generateSchema typeof<char> , string<char> v))
+        | Shape.Int16    -> wrap (fun _ v        -> Scalar (generateSchema typeof<int16>, string<int16> v))
+        | Shape.Int32    -> wrap (fun _ v        -> Scalar (generateSchema typeof<int>  , string<int> v))
+        | Shape.Int64    -> wrap (fun _ v        -> Scalar (generateSchema typeof<int64>, string<int64> v))
+        | Shape.Double   -> wrap (fun _ v        -> Scalar (generateSchema typeof<float>, string<float> v))
+        | Shape.String   -> wrap (fun _ (v:string)   -> Scalar (generateSchema typeof<String>, v))
+        | Shape.DateTime -> wrap (fun _ (b:DateTime) -> Scalar (generateSchema typeof<DateTime>, sprintf "(%i, %i, %i, %i, %i, %i, %i)" b.Year b.Month b.Day b.Hour b.Minute b.Second b.Millisecond))
 
-    // | Shape.FSharpOption s -> TODO
+        | Shape.FSharpList s ->
+            s.Accept { new IFSharpListVisitor<PrettyPrinter<'T>> with
+                        member __.Visit<'a> () = 
+                            let tp = mkPrinterCached<'a> ctx 
+                            wrapNested (fun level x -> Sequence (generateSchema typeof<'T>, x |> List.map (tp (level - 1)))) }
 
-    | Shape.FSharpList s ->
-        s.Accept { new IFSharpListVisitor<PrettyPrinter<'T>> with
-                    member __.Visit<'a> () = 
-                        let tp = mkPrinterCached<'a> ctx 
-                        wrapNested (fun level x -> x |> List.map (tp (level - 1)) |> List) }
+        | Shape.Array s when s.Rank = 1 ->
+            s.Accept { new IArrayVisitor<PrettyPrinter<'T>> with 
+                        member __.Visit<'a> _  = 
+                            let tp = mkPrinterCached<'a> ctx 
+                            wrapNested (fun level x -> Sequence (generateSchema typeof<'T>, x |> Array.map (tp (level - 1)) |> Array.toList)) }
 
-    | Shape.Array s when s.Rank = 1 ->
-        s.Accept { new IArrayVisitor<PrettyPrinter<'T>> with 
-                    member __.Visit<'a> _  = 
-                        let tp = mkPrinterCached<'a> ctx 
-                        wrapNested (fun level x -> x |> Array.map (tp (level - 1)) |> Array.toList |> List) }
+        | Shape.FSharpSet s ->
+            s.Accept { new IFSharpSetVisitor<PrettyPrinter<'T>> with 
+                        member __.Visit<'a when 'a : comparison> () = 
+                            let tp = mkPrinterCached<'a> ctx 
+                            wrapNested (fun level (s : Set<'a>) -> Sequence (generateSchema typeof<'T>, s |> Seq.map (tp (level - 1)) |> Seq.toList)) }
 
-    | Shape.FSharpSet s ->
-        s.Accept { new IFSharpSetVisitor<PrettyPrinter<'T>> with 
-                    member __.Visit<'a when 'a : comparison> () = 
-                        let tp = mkPrinterCached<'a> ctx 
-                        wrapNested (fun level (s : Set<'a>) -> s |> Seq.map (tp (level - 1)) |> Seq.toList |> List) }
+        | Shape.Tuple (:? ShapeTuple<'T> as shape) ->
+            let elemPrinters = shape.Elements |> Array.map mkFieldPrinter
+            wrapNested(fun level (t:'T) -> 
+                Mapping (generateSchema typeof<'T>, (elemPrinters |> Seq.map (fun (n, ep) -> {name = n.Replace("Item", "#"); value = ep (level - 1) t}) |> Seq.toList)))
 
-    | Shape.Tuple (:? ShapeTuple<'T> as shape) ->
-        let elemPrinters = shape.Elements |> Array.map mkFieldPrinter
-        wrapNested(fun level (t:'T) -> 
-            elemPrinters |> Seq.map (fun (n, ep) -> {name = n.Replace("Item", "#"); value = ep (level - 1) t}) |> Seq.toList |> Table)
-
-    | Shape.FSharpRecord (:? ShapeFSharpRecord<'T> as shape) ->
-        let fieldPrinters = shape.Fields |> Array.map mkFieldPrinter
-        wrapNested(fun level (r:'T) -> 
-            fieldPrinters |> Seq.map (fun (name, ep) -> {name = name; value = ep (level - 1) r} ) |> Seq.toList |> Table)
-
-
-    //| Shape.FSharpUnion (:? ShapeFSharpUnion<'T> as shape) -> TODO
-
-    | Shape.Poco (:? ShapePoco<'T> as shape) ->
-        let propPrinters = shape.Properties |> Array.map mkFieldPrinter
-        wrapNested(
-            fun level (r:'T) ->
-                propPrinters
-                |> Seq.map (fun (name, ep) ->
-                    let value = ep (level - 1) r
-                    {name = name; value = value}  ) |> Seq.toList |> Table
-        )
-
-    | _ -> failwithf "unsupported type '%O'" typeof<'T>
+        | Shape.FSharpRecord (:? ShapeFSharpRecord<'T> as shape) ->
+            let fieldPrinters = shape.Fields |> Array.map mkFieldPrinter
+            wrapNested(fun level (r:'T) -> 
+                Mapping (generateSchema typeof<'T>, (fieldPrinters |> Seq.map (fun (name, ep) -> {name = name; value = ep (level - 1) r} ) |> Seq.toList)))
 
 
+        | Shape.FSharpUnion (:? ShapeFSharpUnion<'T> as shape) ->
+            let mkUnionCasePrinter (s : ShapeFSharpUnionCase<'T>) =
+                let fieldPrinters = s.Fields |> Array.map mkFieldPrinter
+                fun level (u:'T) -> 
+                    match fieldPrinters with
+                    | [|_,fp|] -> Mapping (generateSchema typeof<'T>, [ {name = "Case"; value = Scalar (generateSchema typeof<string>, s.CaseInfo.Name)}; {name = "Args"; value = Sequence (generateSchema typeof<'T>, [fp (level - 1) u])}])
+                    | fps      -> Mapping (generateSchema typeof<'T>, [ {name = "Case"; value = Scalar (generateSchema typeof<string>, s.CaseInfo.Name)}; {name = "Args"; value = Sequence (generateSchema typeof<'T>, (fps |> Seq.map (fun (name, fp) -> fp (level - 1) u ) |> Seq.toList))}])
 
-//---------------------------------------
+            let casePrinters = shape.UnionCases |> Array.map mkUnionCasePrinter
+            fun level (u:'T) -> 
+                let printer = casePrinters.[shape.GetTag u]
+                printer (level - 1) u
 
-let pprint (level) (x:'t) = let p = mkPrinter<'t>() in p level x
+        | Shape.Poco (:? ShapePoco<'T> as shape) ->
+            let propPrinters = shape.Properties |> Array.map mkFieldPrinter
+            wrapNested(
+                fun level (r:'T) ->
+                    Mapping (generateSchema typeof<'T>, propPrinters
+                    |> Seq.map (fun (name, ep) ->
+                        let value = ep (level - 1) r
+                        {name = name; value = value}  ) |> Seq.toList)
+            )
 
-//---------------------------------------
+        | _ -> failwithf "unsupported type '%O'" typeof<'T>
 
-// HTML Generation
+    //---------------------------------------
 
-let htmlEncode s = System.Net.WebUtility.HtmlEncode(s)
+    let pprint (level) (x:'t) = let p = mkPrinter<'t>() in p level x
 
-let rec traversePP x =
-    match x with
-    | List lst -> 
-        let fields =
-            lst |> Seq.fold (fun (s:Set<string>) x -> 
-                    match x with
-                    | Table x ->
-                        let c = List.map (fun {name = n} -> n) x
-                        set c + s
-                    | _ -> s
-            ) Set.empty
+    //---------------------------------------
+namespace FsPad
 
-        let body =
-                [
-                    yield "<table>"
-                    yield "<tr>"
-                    for j in fields do
-                        yield "<th>" + htmlEncode j + "</th>"
-                    yield "</tr>"
+open System.IO
+open FsHtml
+open Representation
 
-                    for e in lst do
-                        match e with
-                        | Table item ->
-                            yield "<tr>"
-                            for f in item do
-                                yield "<td>" + traversePP f.value + "</td>"
-                            yield "</tr>"
-                        | other -> yield "<tr><td>" + traversePP other + "</td></tr>"
-                    yield "</table>" 
-                    ] |> String.concat "  "
-        body
-     
-        | Table fields ->
-                        [
-                            yield "<table>"                            
-                            for f in fields do
-                                yield "<tr>"
-                                yield "<th>" + htmlEncode f.name + "</th>"
-                                yield "<td>" + traversePP f.value + "</td>"
-                                yield "</tr>"
-                            yield "</table>" 
-                            ] |> String.concat "  "
-        | Value (_, vl) -> htmlEncode vl
-        | MaxRecurse -> "..."
+module StaticHtml = 
 
-let genhtml x = header + traversePP x + footer
+    let staticHeader =         
+        let path = __SOURCE_DIRECTORY__ + @"\assets\linqpadstyle.html"
+        File.ReadAllText(path)
 
-type Printer() = 
-    static member Print(value, maxLevel) = value |> pprint maxLevel |> genhtml
-    static member Print(value) = value |> pprint 2 |> genhtml
+    let encode = string >> System.Net.WebUtility.HtmlEncode
+
+    let tryField name (fields: FieldValue<_> list) = 
+        fields 
+        |> List.tryFind (fun (fld: FieldValue<_>) -> fld.name = name)
+        |> Option.map (fun x -> x.value)
+
+    let field name fields = 
+        tryField name fields 
+        |> Option.get
+
+    module Template = 
+        
+        let primitive (value: Primitive) = Text (encode value)
+        
+        let collapsibleHeader (cols: int) (name: string) =
+            th [
+                yield "class" %= "collapse-trigger"
+                yield "colspan" %= (string cols)
+                yield span [ "class" %= "arrow-d"; Text " " ]
+                yield h3 %(encode name)
+            ]
+
+        let collapsibleHeaderFromSchema (schema: Schema) = 
+            collapsibleHeader schema.structuralType.Length schema.DisplayName
+
+        let record recur (schema: Schema) (fields: FieldValue<_> list) = 
+            table [
+                thead [
+                    collapsibleHeader 2 schema.DisplayName
+                ]
+                tbody [
+                    for field in fields ->
+                        tr [
+                            td [ 
+                                yield "class" %= "field"
+                                yield! %(field.name) 
+                            ]
+                            td [ recur field.value ]
+                        ]
+                ]
+            ]
+
+        let listLayout recur (schema: Schema) values = 
+            table [
+                thead [
+                    collapsibleHeaderFromSchema schema
+                ]
+                tbody [
+                    for value in values -> 
+                        tr [
+                            td [ recur value ] 
+                        ]
+                ]
+                tfoot [
+                    td [
+                        Text (sprintf "Length: %d" (List.length values))
+                    ]
+                ]
+            ]
+
+        let tableRowFromFields recur (tableSchema: Schema) (fields: FieldValue<_> list) = 
+            let valueMap = 
+                fields 
+                |> Seq.map (fun fld -> fld.name, fld.value)
+                |> Map.ofSeq
+            tr [
+                for field in tableSchema.structuralType ->
+                    td [
+                        match valueMap |> Map.tryFind field.name with
+                        | Some node -> yield recur node
+                        | None -> yield Text "-"
+                    ]
+            ]
+
+        let tableRow recur (tableSchema: Schema) (node: TypedNode) = 
+            match node with
+            | Mapping (_, fields) -> tableRowFromFields recur tableSchema fields                  
+            | _ -> failwith "not a row" 
+
+        let tableLayout recur (schema: Schema) (values: TypedNode list) = 
+            table [
+                thead [
+                    collapsibleHeaderFromSchema schema
+                    tr [
+                        for column in schema.structuralType ->
+                            th %(column.name)
+                    ]
+                ]
+                tbody [
+                    for value in values -> 
+                        tableRow recur schema value
+                ]
+                tfoot [
+                    td [
+                        "colspan" %= (string <| List.length schema.structuralType)
+                        Text (sprintf "Length: %d" (List.length values))
+                    ]
+                ]
+            ]  
+            
+        let tuple recur (schema: Schema) (fields: FieldValue<_> list) = 
+            table [
+                thead [
+                    collapsibleHeaderFromSchema schema
+                    tr [
+                        for column in schema.structuralType ->
+                            th %(column.name)
+                    ]
+                ]
+                tbody [
+                    tableRowFromFields recur schema fields
+                ]
+            ]   
+
+        let union recur fields = 
+            let caseName = 
+                match field "Case" fields with
+                | Scalar (_, value) -> unbox<string> value
+                | _ -> failwith "not a union"
+
+            let args = 
+                match field "Args" fields with
+                | Sequence (schema, values) -> values
+                | _ -> failwith "not a union"
+
+            match List.length args with
+            | 0 -> Text ("| " + caseName)
+            | n -> 
+                table [
+                    thead [
+                        th [
+                            yield "colspan" %= string n
+                            yield! %("| " + caseName)
+                        ]
+                    ]
+                    tbody [
+                        tr [ 
+                            for arg in args ->
+                                td [ recur arg]
+                        ]                            
+                    ]
+                ]
+
+        let option recur fields = 
+            let caseName = 
+                match field "Case" fields with
+                | Scalar (_, value) -> unbox<string> value
+                | _ -> "None"
+
+            let args = 
+                match field "Args" fields with
+                | Sequence (_, values) -> values
+                | _ -> []
+
+            match caseName, args with
+            | "Some", [ arg ] -> recur arg
+            | _, _ -> Text "-"
+
+        let chunk () = Text "..."
+            
+    let rec render (node: TypedNode) = 
+        match node with
+        // a simple value
+        | Scalar (schema, value) -> Template.primitive value
+        // option special case
+        | Mapping (({ typePattern = { typeName = "FSharpOption`1"; variant = Variant.Union }} as schema), fields) -> 
+            Template.option render fields                
+        | Mapping (({ typePattern = { variant = Variant.Union }} as schema), fields) -> 
+            Template.union render fields                
+        // a tuple
+        | Mapping (({ typePattern = { variant = Variant.Tuple }} as schema), fields) -> 
+            Template.tuple render schema fields
+        // a simple record
+        | Mapping (schema, fields) -> Template.record render schema fields
+        // a collection of things
+        | Sequence (schema, values) -> 
+            if List.length values > 1 && (not <| List.isEmpty schema.structuralType) then
+                Template.tableLayout render schema values
+            else
+                Template.listLayout render schema values
+        // lazy values or max recurse level reached - we don't really handle them for now.
+        | Chunk (schema, _) -> Template.chunk ()
+
+    let renderWithStaticHeader (node: TypedNode) = 
+        let content = render node
+        html [
+            head %(staticHeader)
+            body [
+                div [
+                    yield "class" %= "spacer"
+                    yield! %(content)
+                ]
+            ]
+        ]
+open FsPad
 
 open System
 open System.IO
 open System.Windows.Forms
 
+open Representation
+
 type Results() =
-    static let title = "FSI Results"
+    static let title = "FsPad"
     static let localUrl () = Path.GetTempFileName () + ".fspad.html"
     static let getResultsWdw() =
             let localUrl = localUrl ()
@@ -2733,15 +2867,29 @@ type Results() =
             frm.Controls.Add brw
             brw
     static let mutable resultsWdw = getResultsWdw()
-    static member Dump(objValue) = Results.Dump(objValue, 3)
-    static member Dump(objValue, maxLevel : int) =
-        let objName = "RESULTS !" 
+    static member ShowHtml(html: string) = 
         if resultsWdw.IsDisposed then resultsWdw <- getResultsWdw ()
         let localUrl = localUrl ()
-        let html = Printer.Print(objValue, maxLevel)
         File.WriteAllText (localUrl, html)
-        resultsWdw.FindForm().Text <- title + " - " + objName
+        resultsWdw.FindForm().Text <- title
         resultsWdw.Url <- Uri localUrl
-        objValue
+        ()
 
-let dump x = Results.Dump x
+let show x = Results.ShowHtml(x)
+
+let render node = 
+    StaticHtml.renderWithStaticHeader node
+    |> string
+
+let print level value = Printer.pprint level value
+
+type Results with
+    static member Print<'a> (level: int) (value: 'a) =
+        print level value 
+        |> render 
+        |> show
+
+    static member PrintAll<'a> (value: 'a) =
+        Results.Print 100 value
+            
+let dump (value: 'a) = Results.PrintAll<'a>(value)

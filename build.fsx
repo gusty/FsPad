@@ -355,23 +355,6 @@ Target "Release" (fun _ ->
     |> Async.RunSynchronously
 )
 
-Target "BuildFsPad" (fun _ ->
-    let source = [
-        "src/FsPad/TypeShape.fs"
-        "src/FsPad/Printer.fs"
-        "src/FsPad/WinForms.fsx"
-    ]
-
-    let content = [ for file in source do
-                        for line in File.ReadAllLines(file) do
-                            if line.Contains("ignore-cat") = false then
-                                yield line] |> String.concat "\n"
-
-    File.WriteAllText("FsPad.fsx", content.Replace("\r\n", "\n"), Text.UTF8Encoding.UTF8)
-
-    printfn "Wrote FsPad.fsx"
-)
-
 Target "BuildPackage" DoNothing
 
 // --------------------------------------------------------------------------------------
@@ -383,7 +366,6 @@ Target "All" DoNothing
   ==> "AssemblyInfo"
   ==> "Restore"
   ==> "Build"
-  ==> "BuildFsPad"
   ==> "CopyBinaries"
   ==> "RunTests"
   ==> "GenerateReferenceDocs"

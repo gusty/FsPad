@@ -1,13 +1,19 @@
-﻿#load "TypeShape.fs"  //  ignore-cat
-#load "Printer.fs"    //  ignore-cat
+﻿#load "FsHtml.fs"
+      "Representation.fs"
+      "TypeShape.fs"
+      "Printer.fs"
+      "StaticHtml.fs"
 
-open FsPad  // ignore-cat
+open FsPad    
+
 open System
 open System.IO
 open System.Windows.Forms
 
+open Representation
+
 type Results() =
-    static let title = "FSI Results"
+    static let title = "FsPad"
     static let localUrl () = Path.GetTempFileName () + ".fspad.html"
     static let getResultsWdw() =
             let localUrl = localUrl ()
@@ -17,15 +23,29 @@ type Results() =
             frm.Controls.Add brw
             brw
     static let mutable resultsWdw = getResultsWdw()
-    static member Dump(objValue) = Results.Dump(objValue, 3)
-    static member Dump(objValue, maxLevel : int) =
-        let objName = "RESULTS !" 
+    static member ShowHtml(html: string) = 
         if resultsWdw.IsDisposed then resultsWdw <- getResultsWdw ()
         let localUrl = localUrl ()
-        let html = Printer.Print(objValue, maxLevel)
         File.WriteAllText (localUrl, html)
-        resultsWdw.FindForm().Text <- title + " - " + objName
+        resultsWdw.FindForm().Text <- title
         resultsWdw.Url <- Uri localUrl
-        objValue
+        ()
 
-let dump x = Results.Dump x
+let show x = Results.ShowHtml(x)
+
+let render node = 
+    StaticHtml.renderWithStaticHeader node
+    |> string
+
+let print level value = Printer.pprint level value
+
+type Results with
+    static member Print<'a> (level: int) (value: 'a) =
+        print level value 
+        |> render 
+        |> show
+
+    static member PrintAll<'a> (value: 'a) =
+        Results.Print 100 value
+
+let dump (value: 'a) = Results.PrintAll<'a>(value)

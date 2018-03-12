@@ -1,4 +1,4 @@
-﻿module internal TypeShape  //  ignore-cat
+module TypeShape
 
 open System
 open System.Collections.Generic
@@ -25,7 +25,6 @@ type ITypeShapeVisitor<'R> =
 /// Encapsulates a type variable that can be accessed using type shape visitors
 [<AbstractClass>]
 type TypeShape =
-    [<CompilerMessage("TypeShape constructor should not be consumed.", 4224)>]
     internal new () = { }
     abstract Type : Type
     abstract ShapeInfo : TypeShapeInfo
@@ -165,18 +164,18 @@ let tshapeof<'T> = TypeShape.Create<'T>()
 
 type IEnumVisitor<'R> =
     abstract Visit<'Enum, 'Underlying when 'Enum : enum<'Underlying>
-                                       and 'Enum : struct
-                                       and 'Enum :> ValueType
-                                       and 'Enum : (new : unit -> 'Enum)> : unit -> 'R
+                                        and 'Enum : struct
+                                        and 'Enum :> ValueType
+                                        and 'Enum : (new : unit -> 'Enum)> : unit -> 'R
 
 type IShapeEnum =
     abstract Underlying : TypeShape
     abstract Accept : IEnumVisitor<'R> -> 'R
 
 type private ShapeEnum<'Enum, 'Underlying when 'Enum : enum<'Underlying>
-                                           and 'Enum : struct
-                                           and 'Enum :> ValueType
-                                           and 'Enum : (new : unit -> 'Enum)>() =
+                                            and 'Enum : struct
+                                            and 'Enum :> ValueType
+                                            and 'Enum : (new : unit -> 'Enum)>() =
     interface IShapeEnum with
         member __.Underlying = shapeof<'Underlying>
         member __.Accept v = v.Visit<'Enum, 'Underlying> ()
