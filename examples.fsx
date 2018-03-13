@@ -1,4 +1,4 @@
-#load "FsPad.fsx"
+#load "src\FsPad\FsPad.fsx"
 
 open FsPad
 open System
@@ -23,7 +23,7 @@ dump ( ("By Plane", 2, 250.99) )
 dump [ ("By Plane", 2, 250.99); ("By Car", 10, 210.5);  ("By Train", 15, 483.53)  ]
 
 // A record
-type Person = { firstName : string   ; lastName : string; age : int; address : string } 
+type Person = { firstName : string   ; lastName : string; age : int; address : string }
 dump { firstName = "Gustavo"; lastName = "Leon"; age = 43 ; address = "Dole" }
 
 // A list of records (again changes to tabular)
@@ -34,7 +34,7 @@ dump
     ]
 
 // Nested stuff
-type Dev = { firstName : string ; lastName : string ; age : int; address : string ; projects : string list } 
+type Dev = { firstName : string ; lastName : string ; age : int; address : string ; projects : string list }
 dump {firstName = "Gustavo"; lastName = "Leon"; age = 43 ; address = "Dole" ; projects = ["F#+"; "ScrapeM" ]}
 
 dump
@@ -43,16 +43,15 @@ dump
         {firstName = "Steve"  ; lastName = "Goguen"; age = 20 ; address = "?" ; projects = ["Steego.NET"; "FsPad" ]}
     ]
 
-//  Recursively Defined Object
-type Tree<'a>(value:'a, getEdges:'a -> seq<'a>) = 
-    let list = lazy [ for e in getEdges(value) -> Tree(e, getEdges) ]
-    member this.Value = value
-    member this.Children = list.Value
+////  Recursively Defined Object
+//type Tree<'a>(value:'a, getEdges:'a -> seq<'a>) =
+//    let list = lazy [ for e in getEdges(value) -> Tree(e, getEdges) ]
+//    member this.Value = value
+//    member this.Children = list.Value
 
-let tree1 = Tree(Some 1, fun (Some x) -> seq { for x in x..2 -> Some x })
+//let tree1 = Tree(Some 1, fun (Some x) -> seq { for x in x..2 -> Some x })
 
-dump (tree1, 9)
-
+//dump (tree1, 9)
 
 // List of option
 [Some 1; None; Some 4] |> dump

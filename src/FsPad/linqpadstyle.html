@@ -1,0 +1,316 @@
+﻿<meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="Generator" content="LINQ to XML, baby!" />
+<style type='text/css'>
+  body {
+  margin: 0.3em 0.3em 0.4em 0.4em;
+  font-family: Verdana;
+  font-size: 80%;
+  background: white
+  }
+
+  p, pre {
+  margin:0;
+  padding:0;
+  font-family: Verdana;
+  }
+
+  h3 {
+  font-family: Verdana;
+  font-weight: normal;
+  font-style: italic;
+  margin: 0.2em;
+  display: inline-block;
+  }
+
+  table {
+  border-collapse: collapse;
+  border: 2px solid #0504ba;
+  margin: 0.3em 0.2em;
+  }
+
+  table.limit {
+  border-bottom-color: #c31;
+  }
+
+  table.expandable {
+  border-bottom-style: dashed;
+  }
+
+  table.error {
+  border-bottom-width: 4px;
+  }
+
+  td, th {
+  vertical-align: top;
+  border: 1px solid #aaa;
+  padding: 0.2em 0.4em;
+  margin: 0;
+  }
+
+  tfoot {
+  font-size: 70%;
+  }
+
+  th {
+  text-align: left;
+  background-color: #0504ba;
+  color: #FFF;
+  border: 1px solid #777;
+  font-family: tahoma;
+  font-size:90%;
+  font-weight: bold;
+  }
+
+  .field {
+  text-align: left;
+  background-color: #0504ba;
+  color: #FFF;
+  border: 1px solid #777;
+  font-family: tahoma;
+  font-size:90%;
+  font-weight: bold;
+  }
+
+  th.member {
+  padding: 0.1em 0.2em 0.1em 0.2em;
+  }
+
+  td.typeheader {
+  font-family: tahoma;
+  font-size: 100%;
+  font-weight: bold;
+  background-color: #17b;
+  color: white;
+  padding: 0 0.2em 0.15em 0.1em;
+  }
+
+  td.n { text-align: right }
+
+  a:link.typeheader, a:visited.typeheader, a:link.extenser, a:visited.extenser, a:link.fixedextenser, a:visited.fixedextenser {
+  font-family: tahoma;
+  font-size: 90%;
+  font-weight: bold;
+  text-decoration: none;
+  background-color: #17b;
+  color: white;
+  float:left;
+  }
+
+  a:link.extenser, a:visited.extenser, a:link.fixedextenser, a:visited.fixedextenser {
+  float:right;
+  padding-left:2pt;
+  margin-left:4pt
+  }
+
+  span.typeglyph, span.typeglyphx {
+  padding: 0 0.2em 0 0;
+  margin: 0;
+  }
+
+  span.extenser, span.extenserx, span.fixedextenser {
+  margin-top:1.2pt;
+  }
+
+  span.typeglyph, span.extenser, span.fixedextenser {
+  font-family: webdings;
+  }
+
+  span.fixedextenser {
+  display:none;
+  position:fixed;
+  right:6px;
+  }
+
+  td.typeheader:hover .fixedextenser {
+  display:block
+  }
+
+  span.typeglyphx, span.extenserx {
+  font-family: arial;
+  font-weight: bold;
+  margin: 2px;
+  }
+
+  table.group {
+  border: none;
+  margin: 0;
+  }
+
+  td.group {
+  border: none;
+  padding: 0 0.1em;
+  }
+
+  div.spacer { margin: 0.6em 0; }
+
+  table.headingpresenter {
+  border: none;
+  border-left: 3px dotted #1a5;
+  margin: 1em 0em 1.2em 0.15em;
+  }
+
+  th.headingpresenter {
+  font-family: Arial;
+  border: none;
+  padding: 0 0 0.2em 0.5em;
+  background-color: white;
+  color: green;
+  font-size: 110%;
+  }
+
+  td.headingpresenter {
+  border: none;
+  padding: 0 0 0 0.6em;
+  }
+
+  td.summary {
+  background-color: #def;
+  color: #024;
+  font-family: Tahoma;
+  padding: 0 0.1em 0.1em 0.1em;
+  }
+
+  td.columntotal {
+  font-family: Tahoma;
+  background-color: #eee;
+  font-weight: bold;
+  color: #17b;
+  font-size:90%;
+  text-align:right;
+  }
+
+  span.graphbar {
+  background: #17b;
+  color: #17b;
+  margin-left: -2px;
+  margin-right: -2px;
+  }
+
+  a:link.graphcolumn, a:visited.graphcolumn {
+  color: #17b;
+  text-decoration: none;
+  font-weight: bold;
+  font-family: Arial;
+  font-size: 110%;
+  letter-spacing: -0.2em;
+  margin-left: 0.3em;
+  margin-right: 0.1em;
+  }
+
+  a:link.collection, a:visited.collection { color:green }
+
+  a:link.reference, a:visited.reference { color:blue }
+
+  i { color: green }
+
+  em { color:red; }
+
+  span.highlight { background: #ff8 }
+
+  code { font-family: Consolas }
+
+  code.xml b { color:blue; font-weight:normal }
+  code.xml i { color:maroon; font-weight:normal; font-style:normal }
+  code.xml em { color:red; font-weight:normal; font-style:normal }
+
+  .arrow-r {
+  width: 0;
+  height: 0;
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+  border-left: 5px solid #FFF;
+  margin-right: 7px;
+  margin-left: 3px;
+  display: inline-block;
+  }
+
+  .arrow-d {
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 5px solid #FFF;
+  margin-bottom: 6px;
+  margin-right: 5px;
+  display: inline-block;
+  }
+
+  .collapse-container>:nth-child(odd) {
+  padding: 5px;
+  background-color: #0504ba;
+  margin: auto;
+  }
+  .collapse-container>:nth-child(even) {
+  -moz-box-sizing: border-box;
+  -webkit-box-sizing: border-box;
+  box-sizing: border-box;
+  }
+  .collapse-container>:nth-child(even) p {
+  padding: 0px 5px;
+  }
+
+  .collapse-container>:nth-child(odd):hover {
+  cursor: pointer;
+  -moz-user-select: none; /* mozilla browsers */
+  -khtml-user-select: none; /* webkit browsers */
+  }
+
+  .collapse-container > :nth-child(even) {
+  display: block;
+  }
+</style>
+<script
+  src="https://code.jquery.com/jquery-1.9.1.min.js"
+  integrity="sha256-wS9gmOZBqsqWxgIVgA8Y9WcQOa7PgSIX+rPA0VL2rbQ="
+  crossorigin="anonymous"></script>
+<script type="text/javascript">
+  /*!
+  * Collapsible.js v1.2.0
+  * https://github.com/jordnkr/collapsible
+  *
+  * Copyright 2017, Jordan Ruedy
+  * This content is released under the MIT license
+  * http://opensource.org/licenses/MIT
+  */
+
+(function($, undefined) {
+    $.fn.collapsible = function(options) {
+
+        var defaults = {
+            accordion: false,
+            accordionUpSpeed: 0,
+            accordionDownSpeed: 0,
+            collapseSpeed: 0,
+			contentOpen: [ 0 ],
+            arrowRclass: 'arrow-r',
+            arrowDclass: 'arrow-d',
+            animate: true
+        };
+
+        var settings = $.extend(defaults, options);
+
+        return this.each(function() {
+            if (settings.animate === false) {
+                settings.accordionUpSpeed = 0;
+                settings.accordionDownSpeed = 0;
+                settings.collapseSpeed = 0;
+            }
+
+            var $thisTrigger = $(this).closest('thead');
+            var $thisTargets = $(this).closest('table').children().not('thead');
+
+            $($thisTrigger).click(function() {
+                $(this).find("span").toggleClass(settings.arrowRclass + ' ' + settings.arrowDclass);
+				$(this).children().slice(1).slideToggle(settings.collapseSpeed);
+                $thisTargets.slideToggle(settings.collapseSpeed);
+            });
+        });
+    };
+})(jQuery);
+</script>
+<script language='JavaScript' type='text/javascript'>
+  $(document).ready(function() {
+    $(".collapse-trigger").collapsible();
+  });
+</script>

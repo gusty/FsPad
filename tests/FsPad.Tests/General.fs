@@ -6,7 +6,7 @@ open NUnit.Framework
 
 
 
-module BasicTests = 
+module BasicTests =
     [<Test>]
-    let parse() = 
+    let parse() =
         Assert.IsTrue(true)

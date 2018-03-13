@@ -17,8 +17,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "project", "project", "{BF60
 	ProjectSection(SolutionItems) = preProject
 		build.fsx = build.fsx
 		examples.fsx = examples.fsx
-		FsPad.fsx = FsPad.fsx
-		FsPad.Output.fsx = FsPad.Output.fsx
 		README.md = README.md
 		RELEASE_NOTES.md = RELEASE_NOTES.md
 	EndProjectSection
