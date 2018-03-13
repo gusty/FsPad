@@ -4,7 +4,7 @@
       "Printer.fs"
       "StaticHtml.fs"
 
-open FsPad    
+open FsPad
 
 open System
 open System.IO
@@ -23,7 +23,7 @@ type Results() =
             frm.Controls.Add brw
             brw
     static let mutable resultsWdw = getResultsWdw()
-    static member ShowHtml(html: string) = 
+    static member ShowHtml(html: string) =
         if resultsWdw.IsDisposed then resultsWdw <- getResultsWdw ()
         let localUrl = localUrl ()
         File.WriteAllText (localUrl, html)
@@ -33,7 +33,7 @@ type Results() =
 
 let show x = Results.ShowHtml(x)
 
-let render node = 
+let render node =
     StaticHtml.renderWithStaticHeader node
     |> string
 
@@ -41,8 +41,8 @@ let print level value = Printer.pprint level value
 
 type Results with
     static member Print<'a> (level: int) (value: 'a) =
-        print level value 
-        |> render 
+        print level value
+        |> render
         |> show
 
     static member PrintAll<'a> (value: 'a) =

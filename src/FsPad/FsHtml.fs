@@ -15,7 +15,7 @@ type Html =
          | Elem(tag, content) ->
             let isAttr = function Attr _ -> true | _ -> false
             let attrs, elems = content |> List.partition isAttr
-            let attrs =         
+            let attrs =
                if attrs = [] then ""
                else " " + String.concat " " [for attr in attrs -> toString 0 attr]
             match elems with
@@ -24,7 +24,7 @@ type Html =
                spaces+"<"+tag+attrs+">\r\n"+
                   String.concat "" [for e in elems -> toString (indent+1) e] +
                      spaces+"</"+tag+">\r\n"
-         | Text(text) ->            
+         | Text(text) ->
             spaces + text + "\r\n"
       toString 0 elem
    override this.ToString() = Html.toString this

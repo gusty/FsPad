@@ -4,27 +4,27 @@ open System.IO
 open FsHtml
 open Representation
 
-module StaticHtml = 
+module StaticHtml =
 
-    let staticHeader =         
+    let staticHeader =
         let path = __SOURCE_DIRECTORY__ + @"\linqpadstyle.html"
         File.ReadAllText(path)
 
     let encode = string >> System.Net.WebUtility.HtmlEncode
 
-    let tryField name (fields: FieldValue<_> list) = 
-        fields 
+    let tryField name (fields: FieldValue<_> list) =
+        fields
         |> List.tryFind (fun (fld: FieldValue<_>) -> fld.name = name)
         |> Option.map (fun x -> x.value)
 
-    let field name fields = 
-        tryField name fields 
+    let field name fields =
+        tryField name fields
         |> Option.get
 
-    module Template = 
-        
+    module Template =
+
         let primitive (value: Primitive) = Text (encode value)
-        
+
         let collapsibleHeader (cols: int) (name: string) =
             th [
                 yield "class" %= "collapse-trigger"
@@ -33,10 +33,10 @@ module StaticHtml =
                 yield h3 %(encode name)
             ]
 
-        let collapsibleHeaderFromSchema (schema: Schema) = 
+        let collapsibleHeaderFromSchema (schema: Schema) =
             collapsibleHeader schema.structuralType.Length schema.DisplayName
 
-        let record recur (schema: Schema) (fields: FieldValue<_> list) = 
+        let record recur (schema: Schema) (fields: FieldValue<_> list) =
             table [
                 thead [
                     collapsibleHeader 2 schema.DisplayName
@@ -44,24 +44,24 @@ module StaticHtml =
                 tbody [
                     for field in fields ->
                         tr [
-                            td [ 
+                            td [
                                 yield "class" %= "field"
-                                yield! %(field.name) 
+                                yield! %(field.name)
                             ]
                             td [ recur field.value ]
                         ]
                 ]
             ]
 
-        let listLayout recur (schema: Schema) values = 
+        let listLayout recur (schema: Schema) values =
             table [
                 thead [
                     collapsibleHeaderFromSchema schema
                 ]
                 tbody [
-                    for value in values -> 
+                    for value in values ->
                         tr [
-                            td [ recur value ] 
+                            td [ recur value ]
                         ]
                 ]
                 tfoot [
@@ -71,9 +71,9 @@ module StaticHtml =
                 ]
             ]
 
-        let tableRowFromFields recur (tableSchema: Schema) (fields: FieldValue<_> list) = 
-            let valueMap = 
-                fields 
+        let tableRowFromFields recur (tableSchema: Schema) (fields: FieldValue<_> list) =
+            let valueMap =
+                fields
                 |> Seq.map (fun fld -> fld.name, fld.value)
                 |> Map.ofSeq
             tr [
@@ -85,12 +85,12 @@ module StaticHtml =
                     ]
             ]
 
-        let tableRow recur (tableSchema: Schema) (node: TypedNode) = 
+        let tableRow recur (tableSchema: Schema) (node: TypedNode) =
             match node with
-            | Mapping (_, fields) -> tableRowFromFields recur tableSchema fields                  
-            | _ -> failwith "not a row" 
+            | Mapping (_, fields) -> tableRowFromFields recur tableSchema fields
+            | _ -> failwith "not a row"
 
-        let tableLayout recur (schema: Schema) (values: TypedNode list) = 
+        let tableLayout recur (schema: Schema) (values: TypedNode list) =
             table [
                 thead [
                     collapsibleHeaderFromSchema schema
@@ -100,7 +100,7 @@ module StaticHtml =
                     ]
                 ]
                 tbody [
-                    for value in values -> 
+                    for value in values ->
                         tableRow recur schema value
                 ]
                 tfoot [
@@ -109,9 +109,9 @@ module StaticHtml =
                         Text (sprintf "Length: %d" (List.length values))
                     ]
                 ]
-            ]  
-            
-        let tuple recur (schema: Schema) (fields: FieldValue<_> list) = 
+            ]
+
+        let tuple recur (schema: Schema) (fields: FieldValue<_> list) =
             table [
                 thead [
                     collapsibleHeaderFromSchema schema
@@ -123,22 +123,22 @@ module StaticHtml =
                 tbody [
                     tableRowFromFields recur schema fields
                 ]
-            ]   
+            ]
 
-        let union recur fields = 
-            let caseName = 
+        let union recur fields =
+            let caseName =
                 match field "Case" fields with
                 | Scalar (_, value) -> unbox<string> value
                 | _ -> failwith "not a union"
 
-            let args = 
+            let args =
                 match field "Args" fields with
                 | Sequence (schema, values) -> values
                 | _ -> failwith "not a union"
 
             match List.length args with
             | 0 -> Text ("| " + caseName)
-            | n -> 
+            | n ->
                 table [
                     thead [
                         th [
@@ -147,20 +147,20 @@ module StaticHtml =
                         ]
                     ]
                     tbody [
-                        tr [ 
+                        tr [
                             for arg in args ->
                                 td [ recur arg]
-                        ]                            
+                        ]
                     ]
                 ]
 
-        let option recur fields = 
-            let caseName = 
+        let option recur fields =
+            let caseName =
                 match field "Case" fields with
                 | Scalar (_, value) -> unbox<string> value
                 | _ -> "None"
 
-            let args = 
+            let args =
                 match field "Args" fields with
                 | Sequence (_, values) -> values
                 | _ -> []
@@ -170,23 +170,23 @@ module StaticHtml =
             | _, _ -> Text "-"
 
         let chunk () = Text "..."
-            
-    let rec render (node: TypedNode) = 
+
+    let rec render (node: TypedNode) =
         match node with
         // a simple value
         | Scalar (schema, value) -> Template.primitive value
         // option special case
-        | Mapping (({ typePattern = { typeName = "FSharpOption`1"; variant = Variant.Union }} as schema), fields) -> 
-            Template.option render fields                
-        | Mapping (({ typePattern = { variant = Variant.Union }} as schema), fields) -> 
-            Template.union render fields                
+        | Mapping (({ typePattern = { typeName = "FSharpOption`1"; variant = Variant.Union }} as schema), fields) ->
+            Template.option render fields
+        | Mapping (({ typePattern = { variant = Variant.Union }} as schema), fields) ->
+            Template.union render fields
         // a tuple
-        | Mapping (({ typePattern = { variant = Variant.Tuple }} as schema), fields) -> 
+        | Mapping (({ typePattern = { variant = Variant.Tuple }} as schema), fields) ->
             Template.tuple render schema fields
         // a simple record
         | Mapping (schema, fields) -> Template.record render schema fields
         // a collection of things
-        | Sequence (schema, values) -> 
+        | Sequence (schema, values) ->
             if List.length values > 1 && (not <| List.isEmpty schema.structuralType) then
                 Template.tableLayout render schema values
             else
@@ -194,7 +194,7 @@ module StaticHtml =
         // lazy values or max recurse level reached - we don't really handle them for now.
         | Chunk (schema, _) -> Template.chunk ()
 
-    let renderWithStaticHeader (node: TypedNode) = 
+    let renderWithStaticHeader (node: TypedNode) =
         let content = render node
         html [
             head %(staticHeader)

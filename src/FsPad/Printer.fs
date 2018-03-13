@@ -3,7 +3,7 @@
 open System
 open TypeShape
 
-module Printer = 
+module Printer =
     open Representation
     open Reflection
 
@@ -51,43 +51,43 @@ module Printer =
 
         | Shape.FSharpList s ->
             s.Accept { new IFSharpListVisitor<PrettyPrinter<'T>> with
-                        member __.Visit<'a> () = 
-                            let tp = mkPrinterCached<'a> ctx 
+                        member __.Visit<'a> () =
+                            let tp = mkPrinterCached<'a> ctx
                             wrapNested (fun level x -> Sequence (generateSchema typeof<'T>, x |> List.map (tp (level - 1)))) }
 
         | Shape.Array s when s.Rank = 1 ->
-            s.Accept { new IArrayVisitor<PrettyPrinter<'T>> with 
-                        member __.Visit<'a> _  = 
-                            let tp = mkPrinterCached<'a> ctx 
+            s.Accept { new IArrayVisitor<PrettyPrinter<'T>> with
+                        member __.Visit<'a> _  =
+                            let tp = mkPrinterCached<'a> ctx
                             wrapNested (fun level x -> Sequence (generateSchema typeof<'T>, x |> Array.map (tp (level - 1)) |> Array.toList)) }
 
         | Shape.FSharpSet s ->
-            s.Accept { new IFSharpSetVisitor<PrettyPrinter<'T>> with 
-                        member __.Visit<'a when 'a : comparison> () = 
-                            let tp = mkPrinterCached<'a> ctx 
+            s.Accept { new IFSharpSetVisitor<PrettyPrinter<'T>> with
+                        member __.Visit<'a when 'a : comparison> () =
+                            let tp = mkPrinterCached<'a> ctx
                             wrapNested (fun level (s : Set<'a>) -> Sequence (generateSchema typeof<'T>, s |> Seq.map (tp (level - 1)) |> Seq.toList)) }
 
         | Shape.Tuple (:? ShapeTuple<'T> as shape) ->
             let elemPrinters = shape.Elements |> Array.map mkFieldPrinter
-            wrapNested(fun level (t:'T) -> 
+            wrapNested(fun level (t:'T) ->
                 Mapping (generateSchema typeof<'T>, (elemPrinters |> Seq.map (fun (n, ep) -> {name = n.Replace("Item", "#"); value = ep (level - 1) t}) |> Seq.toList)))
 
         | Shape.FSharpRecord (:? ShapeFSharpRecord<'T> as shape) ->
             let fieldPrinters = shape.Fields |> Array.map mkFieldPrinter
-            wrapNested(fun level (r:'T) -> 
+            wrapNested(fun level (r:'T) ->
                 Mapping (generateSchema typeof<'T>, (fieldPrinters |> Seq.map (fun (name, ep) -> {name = name; value = ep (level - 1) r} ) |> Seq.toList)))
 
 
         | Shape.FSharpUnion (:? ShapeFSharpUnion<'T> as shape) ->
             let mkUnionCasePrinter (s : ShapeFSharpUnionCase<'T>) =
                 let fieldPrinters = s.Fields |> Array.map mkFieldPrinter
-                fun level (u:'T) -> 
+                fun level (u:'T) ->
                     match fieldPrinters with
                     | [|_,fp|] -> Mapping (generateSchema typeof<'T>, [ {name = "Case"; value = Scalar (generateSchema typeof<string>, s.CaseInfo.Name)}; {name = "Args"; value = Sequence (generateSchema typeof<'T>, [fp (level - 1) u])}])
                     | fps      -> Mapping (generateSchema typeof<'T>, [ {name = "Case"; value = Scalar (generateSchema typeof<string>, s.CaseInfo.Name)}; {name = "Args"; value = Sequence (generateSchema typeof<'T>, (fps |> Seq.map (fun (name, fp) -> fp (level - 1) u ) |> Seq.toList))}])
 
             let casePrinters = shape.UnionCases |> Array.map mkUnionCasePrinter
-            fun level (u:'T) -> 
+            fun level (u:'T) ->
                 let printer = casePrinters.[shape.GetTag u]
                 printer (level - 1) u
 

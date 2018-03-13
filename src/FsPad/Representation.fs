@@ -2,7 +2,7 @@
 
 open System
 
-module Representation = 
+module Representation =
 
     /// A primitive value that has a JavaScript representation.
     type Primitive = obj
@@ -13,7 +13,7 @@ module Representation =
     type FieldValue<'label> = { name: string; value: LabelledNode<'label> }
 
     /// Tree representing the value with extra information.
-    and LabelledNode<'label> = 
+    and LabelledNode<'label> =
         /// Primitive value.
         | Scalar of 'label * Primitive
         /// A sequence of values
@@ -24,19 +24,19 @@ module Representation =
         /// of chunks keyed by ids to be evaluated on demand, though we'd need
         /// to have a server around for that.
         | Chunk of 'label * ChunkId
-        member this.Label = 
+        member this.Label =
             match this with
-            | Scalar (lbl, _) 
+            | Scalar (lbl, _)
             | Sequence (lbl, _)
             | Mapping (lbl, _)
             | Chunk (lbl, _) -> lbl
 
-    /// Type of the named field. 
+    /// Type of the named field.
     type FieldType<'label> = { name: string; schema: 'label }
 
     /// Discriminates different variants of types in F# that we might want to
     /// distinguish in the UI.
-    type Variant = 
+    type Variant =
         | Primitive
         | Poco
         | Record
@@ -50,20 +50,20 @@ module Representation =
     /// - discriminated unions in general
     /// - options specifically
     /// - int options (if it somehow made sense to have something very specific for them)
-    type TypePattern = 
+    type TypePattern =
         {
             typeName: string
             variant: Variant
             genericTypeArgs: TypePattern list
         }
         member pattern.DisplayName =
-            match pattern.genericTypeArgs with 
+            match pattern.genericTypeArgs with
             | [] -> sprintf "%s" pattern.typeName
-            | other -> 
+            | other ->
                 if pattern.variant = Variant.Tuple then
                     String.Join(" * ", List.map (fun (x: TypePattern) -> x.DisplayName) other)
                 else
-                    let args = 
+                    let args =
                         String.Join(",", List.map (fun (x: TypePattern) -> x.DisplayName) other)
                     sprintf "%s<%s>" pattern.typeName args
 
@@ -82,15 +82,15 @@ module Representation =
 
     type TypedNode = LabelledNode<Schema>
 
-module Reflection = 
-    
+module Reflection =
+
     open Representation
     open System.Reflection
     open FSharp.Reflection
     open System.Collections
 
     type Variant with
-        static member FromType(typ: Type) = 
+        static member FromType(typ: Type) =
             let ienum = typeof<IEnumerable>
             match typ with
             | _ when typ = typeof<string>        -> Variant.Primitive
@@ -106,7 +106,7 @@ module Reflection =
         {
             typeName = typ.Name
             variant = Variant.FromType(typ)
-            genericTypeArgs = 
+            genericTypeArgs =
                 if typ.IsGenericType then
                     [ for arg in typ.GenericTypeArguments -> generateTypePattern arg ]
                 else []
@@ -116,30 +116,30 @@ module Reflection =
         let variant = Variant.FromType(typ)
         match variant with
         | Variant.Record ->
-            let fields = FSharpType.GetRecordFields(typ, true) 
+            let fields = FSharpType.GetRecordFields(typ, true)
             [ for prop in fields -> { name = prop.Name; schema = generateSchema prop.PropertyType } ]
-        | Variant.Tuple -> 
+        | Variant.Tuple ->
             FSharpType.GetTupleElements(typ)
-            |> Seq.mapi (fun idx e -> 
+            |> Seq.mapi (fun idx e ->
                 { name = sprintf "#%d" (idx + 1); schema = generateSchema e })
             |> List.ofSeq
-        | Variant.Collection -> 
-            let argTyp = 
+        | Variant.Collection ->
+            let argTyp =
                 if typ.IsGenericType then
                     Some <| typ.GenericTypeArguments.[0]
                 elif typ.IsArray then
                     Some <| typ.GetElementType()
-                else    
+                else
                     None
-                    
+
             match argTyp with
             | Some t -> generateStructuralType t
             | None -> []
         | _ -> []
 
-    and generateSchema (typ: Type) : Schema =         
+    and generateSchema (typ: Type) : Schema =
         {
             fullTypeName = typ.FullName
-            structuralType = generateStructuralType typ               
+            structuralType = generateStructuralType typ
             typePattern = generateTypePattern typ
         }
