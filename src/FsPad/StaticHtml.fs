@@ -10,8 +10,6 @@ module StaticHtml =
         let path = __SOURCE_DIRECTORY__ + @"\linqpadstyle.html"
         File.ReadAllText(path)
 
-    let encode = string >> System.Net.WebUtility.HtmlEncode
-
     let tryField name (fields: FieldValue<_> list) =
         fields
         |> List.tryFind (fun (fld: FieldValue<_>) -> fld.name = name)
@@ -23,14 +21,14 @@ module StaticHtml =
 
     module Template =
 
-        let primitive (value: Primitive) = Text (encode value)
+        let primitive (value: Primitive) = Text (string(value))
 
         let collapsibleHeader (cols: int) (name: string) =
             th [
                 yield "class" %= "collapse-trigger"
                 yield "colspan" %= (string cols)
                 yield span [ "class" %= "arrow-d"; Text " " ]
-                yield h3 %(encode name)
+                yield h3 %(name)
             ]
 
         let collapsibleHeaderFromSchema (schema: Schema) =
@@ -197,11 +195,11 @@ module StaticHtml =
     let renderWithStaticHeader (node: TypedNode) =
         let content = render node
         html [
-            head %(staticHeader)
+            head [ RawHtml(staticHeader) ] 
             body [
                 div [
                     yield "class" %= "spacer"
-                    yield! %(content)
+                    yield content
                 ]
             ]
         ]
