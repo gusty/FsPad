@@ -1,23 +1,28 @@
 ﻿module FsHtml
 
+let private encode(s) = System.Net.WebUtility.HtmlEncode(s)
 type Html =
    | Elem of string * Html list
    | Attr of string * string
    | Text of string
+   | RawHtml of string
    with
    static member toString elem =
       let rec toString indent elem =
          let spaces = String.replicate indent " "
          match elem with
-         | Attr(name,value) -> name+"=\""+value+"\""
+         | RawHtml(html) -> html
+         | Attr(name,value) -> encode(name)+"=\""+encode(value)+"\""
          | Elem(tag, [Text s]) ->
-            spaces+"<"+tag+">"+s+"</"+tag+">\r\n"
+            let tag = encode(tag)
+            spaces+"<"+tag+">"+encode(s)+"</"+tag+">\r\n"
          | Elem(tag, content) ->
             let isAttr = function Attr _ -> true | _ -> false
             let attrs, elems = content |> List.partition isAttr
             let attrs =
                if attrs = [] then ""
                else " " + String.concat " " [for attr in attrs -> toString 0 attr]
+            let tag = encode(tag)
             match elems with
             | [] -> spaces+"<"+tag+attrs+"/>\r\n"
             | _ ->
@@ -25,7 +30,7 @@ type Html =
                   String.concat "" [for e in elems -> toString (indent+1) e] +
                      spaces+"</"+tag+">\r\n"
          | Text(text) ->
-            spaces + text + "\r\n"
+            spaces + encode(text) + "\r\n"
       toString 0 elem
    override this.ToString() = Html.toString this
 
